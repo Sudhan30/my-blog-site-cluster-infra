@@ -1,0 +1,8 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: blog-dh
+  namespace: web
+spec:
+  image: docker.io/sudhan03/blog-site
+  interval: 1m0s

@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog
+  namespace: web
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: blog } }
+  template:
+    metadata: { labels: { app: blog } }
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-creds
+      containers:
+        - name: blog
+          image: docker.io/sudhan03/blog-site:latest
+          imagePullPolicy: IfNotPresent
+          ports: [{ containerPort: 80 }]
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits:   { cpu: 500m, memory: 512Mi }
+          readinessProbe:
+            httpGet: { path: "/", port: 80 }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: "/", port: 80 }
+            initialDelaySeconds: 10
+            periodSeconds: 10

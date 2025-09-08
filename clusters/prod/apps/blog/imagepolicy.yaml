@@ -1,0 +1,13 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: blog-newest
+  namespace: web
+spec:
+  imageRepositoryRef:
+    name: blog-dh
+  policy:
+    alphabetical:
+      order: asc
+  filterTags:
+    pattern: '^[0-9a-f]{7,}$'

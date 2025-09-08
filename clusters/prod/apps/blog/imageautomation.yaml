@@ -1,0 +1,21 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: blog-automation
+  namespace: web
+spec:
+  interval: 1m0s
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  git:
+    checkout: { ref: { branch: main } }
+    commit:
+      author: { name: flux-bot, email: flux-bot@example.com }
+      messageTemplate: |
+        chore(blog): update image to {{range .Updated.Images}}{{.}}{{end}}
+    push: { branch: main }
+  update:
+    path: ./clusters/prod/apps/blog
+    strategy: Kustomize

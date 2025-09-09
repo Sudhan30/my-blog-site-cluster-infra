@@ -12,3 +12,4 @@ kubectl create secret docker-registry dockerhub-creds   --docker-server=https://
 Then commit & push this repo. Flux will reconcile automatically.
 # my-blog-site-cluster-infra
 # Automation Test - Mon Sep  8 20:51:54 PDT 2025
+# Automation Test - Mon Sep  8 20:55:02 PDT 2025

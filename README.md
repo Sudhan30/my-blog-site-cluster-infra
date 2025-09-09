@@ -444,6 +444,165 @@ kubectl -n flux-system logs -l app=source-controller
 - Check for Flux updates
 - Validate backup procedures
 
+## 🚀 Load Testing
+
+The system includes comprehensive load testing capabilities to test your blog site's performance under various load conditions.
+
+### **Load Testing Scripts**
+
+#### **1. Simple Load Test** (`simple-load-test.sh`)
+
+**Purpose**: Basic load testing using only curl (no additional tools required)
+
+**Features**:
+- Basic connectivity testing
+- Simple load testing
+- Stress testing
+- Response time testing under load
+- Comprehensive performance reports
+
+**Usage**:
+```bash
+# Run all simple load tests
+./simple-load-test.sh test
+
+# Test connectivity only
+./simple-load-test.sh connectivity
+
+# Run load test only
+./simple-load-test.sh load
+
+# Run stress test only
+./simple-load-test.sh stress
+
+# Test response time under load
+./simple-load-test.sh response-time
+```
+
+#### **2. Advanced Load Test** (`load-test-blog.sh`)
+
+**Purpose**: Comprehensive load testing with multiple tools
+
+**Features**:
+- Apache Bench (ab) testing
+- wrk testing
+- siege testing
+- Custom curl-based testing
+- Stress testing
+- Performance analysis
+
+**Prerequisites**:
+- curl (usually pre-installed)
+- apache2-utils (for ab command)
+- wrk (optional, for advanced testing)
+- siege (optional, for advanced testing)
+
+**Usage**:
+```bash
+# Run all advanced load tests
+./load-test-blog.sh test
+
+# Run specific tests
+./load-test-blog.sh apache-bench
+./load-test-blog.sh wrk
+./load-test-blog.sh siege
+./load-test-blog.sh stress
+```
+
+#### **3. Kubernetes Load Test** (`k8s-load-test.sh`)
+
+**Purpose**: Load testing specifically for Kubernetes deployments
+
+**Features**:
+- Service information gathering
+- Pod resource usage testing
+- Pod load testing
+- Pod scaling testing
+- Pod health under load testing
+- Kubernetes-specific performance analysis
+
+**Prerequisites**:
+- kubectl configured and connected to cluster
+- curl (usually pre-installed)
+- Blog deployment running in Kubernetes
+
+**Usage**:
+```bash
+# Run all Kubernetes load tests
+./k8s-load-test.sh test
+
+# Run specific tests
+./k8s-load-test.sh service-info
+./k8s-load-test.sh pod-resources
+./k8s-load-test.sh pod-load
+./k8s-load-test.sh pod-scaling
+./k8s-load-test.sh pod-health
+```
+
+### **Load Testing Examples**
+
+#### **Basic Load Testing**:
+```bash
+# Test your blog site
+BLOG_URL=https://yourblog.com ./simple-load-test.sh test
+
+# Test with custom parameters
+TEST_DURATION=60 CONCURRENT_USERS=10 ./simple-load-test.sh test
+```
+
+#### **Advanced Load Testing**:
+```bash
+# Install prerequisites (Ubuntu/Debian)
+sudo apt-get install apache2-utils wrk siege
+
+# Run comprehensive tests
+BLOG_URL=https://yourblog.com ./load-test-blog.sh test
+```
+
+#### **Kubernetes Load Testing**:
+```bash
+# Test your Kubernetes deployment
+NAMESPACE=web ./k8s-load-test.sh test
+
+# Test with custom parameters
+TEST_DURATION=120 CONCURRENT_USERS=20 ./k8s-load-test.sh test
+```
+
+### **Load Testing Results**
+
+All load testing scripts generate:
+- **Detailed test results** in text format
+- **Comprehensive performance reports** in Markdown format
+- **Timestamped results** for comparison over time
+- **Performance metrics** including:
+  - Response times
+  - Success rates
+  - Requests per second
+  - Resource utilization
+  - Error rates
+
+### **Performance Optimization Recommendations**
+
+Based on load test results, consider:
+
+#### **High Priority**:
+- Monitor response times under load
+- Implement caching strategies
+- Optimize database queries
+- Use CDN for static assets
+
+#### **Medium Priority**:
+- Implement rate limiting
+- Add monitoring and alerting
+- Optimize images and assets
+- Consider horizontal scaling
+
+#### **Low Priority**:
+- Implement compression
+- Optimize CSS and JavaScript
+- Use HTTP/2
+- Implement service worker caching
+
 ### Maintenance Commands
 
 ```bash

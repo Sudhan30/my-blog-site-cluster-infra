@@ -512,6 +512,70 @@ The system includes comprehensive cron job backup and restore functionality:
 ./server-cron-backup.sh restore server-cron-jobs-YYYYMMDD-HHMMSS.txt
 ```
 
+### Server Scripts Backup
+
+The system also includes backup functionality for the actual script files referenced in cron jobs:
+
+#### **Script Backup Script** (`backup-server-scripts.sh`)
+
+**Purpose**: Backup and restore server script files for disaster recovery
+
+**Scripts backed up**:
+- **DuckDNS script**: `~/duckdns/duck.sh`
+- **ACME.sh script**: `/home/sudhan0312/.acme.sh/acme.sh`
+- **Server backup script**: `~/server_backup.sh`
+
+**Usage**:
+```bash
+# Backup all server scripts
+./backup-server-scripts.sh backup
+
+# Show script information
+./backup-server-scripts.sh info
+
+# Restore all scripts to server
+./backup-server-scripts.sh restore
+
+# Create script templates
+./backup-server-scripts.sh templates
+```
+
+#### **Complete Server Backup** (`complete-server-backup.sh`)
+
+**Purpose**: Complete server backup including cron jobs, scripts, and system information
+
+**What it backs up**:
+- All cron jobs
+- All server scripts
+- System information (disk usage, memory, services)
+- Creates restore script for easy recovery
+
+**Usage**:
+```bash
+# Create complete server backup
+./complete-server-backup.sh backup
+
+# This creates a timestamped backup directory with:
+# - server-cron-jobs-YYYYMMDD-HHMMSS.txt
+# - duck.sh-YYYYMMDD-HHMMSS.sh
+# - acme.sh-YYYYMMDD-HHMMSS.sh
+# - server_backup.sh-YYYYMMDD-HHMMSS.sh
+# - system-info-YYYYMMDD-HHMMSS.txt
+# - restore-server.sh (executable restore script)
+# - backup-manifest.txt
+```
+
+**Complete Disaster Recovery**:
+```bash
+# 1. Create complete backup
+./complete-server-backup.sh backup
+
+# 2. If server needs to be restored:
+# Copy backup directory to server
+# cd into backup directory
+# Run: ./restore-server.sh
+```
+
 # Clean up manually
 /tmp/log-utils.sh clean
 kubectl -n web delete pods --field-selector=status.phase=Succeeded

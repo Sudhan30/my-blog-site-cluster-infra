@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# DuckDNS Update Script Template
+# Update this with your actual DuckDNS token and domain
+
+DOMAIN="your-domain.duckdns.org"
+TOKEN="your-duckdns-token"
+
+# Get current public IP
+CURRENT_IP=$(curl -s https://api.ipify.org)
+
+# Update DuckDNS
+curl -s "https://www.duckdns.org/update?domains=$DOMAIN&token=$TOKEN&ip=$CURRENT_IP"
+
+echo "$(date): Updated DuckDNS for $DOMAIN to $CURRENT_IP" >> ~/duckdns.log

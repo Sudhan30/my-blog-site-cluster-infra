@@ -1,0 +1,12 @@
+#!/bin/bash
+
+# ACME.sh SSL Certificate Management Template
+# This is a template - the actual acme.sh script is more complex
+
+# Set ACME.sh directory
+ACME_DIR="/home/sudhan0312/.acme.sh"
+
+# Run ACME.sh with cron flag
+"$ACME_DIR/acme.sh" --cron --home "$ACME_DIR"
+
+echo "$(date): ACME.sh certificate check completed" >> ~/acme.log

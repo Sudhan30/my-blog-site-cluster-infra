@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Server Backup Script Template
+# Customize this for your backup needs
+
+BACKUP_DIR="/backup"
+DATE=$(date +%Y%m%d-%H%M%S)
+
+# Create backup directory
+mkdir -p "$BACKUP_DIR"
+
+# Example backup commands (customize as needed)
+# tar -czf "$BACKUP_DIR/config-backup-$DATE.tar.gz" /etc
+# tar -czf "$BACKUP_DIR/home-backup-$DATE.tar.gz" /home
+# tar -czf "$BACKUP_DIR/var-backup-$DATE.tar.gz" /var
+
+echo "$(date): Server backup completed" >> ~/backup.log
+
+# Clean up old backups (keep last 7 days)
+find "$BACKUP_DIR" -name "*.tar.gz" -mtime +7 -delete

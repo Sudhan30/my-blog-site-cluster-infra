@@ -82,7 +82,23 @@ BLOG_URL=https://yourblog.com ./load-test-blog.sh test
 ./k8s-load-test.sh test
 ```
 
-### 5. Backup System (Optional)
+### 5. Horizontal Pod Autoscaling (Optional)
+
+```bash
+# Create HPA for automatic scaling
+./manage-hpa.sh create 60 2 10
+
+# Monitor HPA status
+./manage-hpa.sh status
+
+# Test autoscaling with load
+./test-hpa-load.sh --duration 300 --users 20
+
+# Monitor HPA in real-time
+./manage-hpa.sh monitor
+```
+
+### 6. Backup System (Optional)
 
 ```bash
 # Backup server scripts and cron jobs
@@ -197,6 +213,162 @@ graph TB
 - **Load balancing** and traffic distribution
 - **CDN integration** for static assets
 - **Caching strategies** for improved performance
+- **Automatic scaling** based on CPU and memory usage
+- **Load testing** for HPA validation
+
+## 📈 Horizontal Pod Autoscaling (HPA)
+
+The system includes comprehensive HorizontalPodAutoscaler (HPA) support for automatic scaling based on resource usage.
+
+### **HPA Configuration**
+
+#### **HPA Manifest** (`hpa.yaml`)
+
+**Features**:
+- **CPU-based scaling** with 60% target utilization
+- **Memory-based scaling** with 80% target utilization
+- **Min replicas**: 2, **Max replicas**: 10
+- **Smart scaling behavior** with stabilization windows
+- **Gradual scale-up** and **conservative scale-down**
+
+**Configuration**:
+```yaml
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: blog-hpa
+  namespace: web
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: blog
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+```
+
+#### **HPA Management Script** (`manage-hpa.sh`)
+
+**Purpose**: Complete HPA management and monitoring
+
+**Features**:
+- Create, update, and delete HPA
+- Real-time monitoring and status
+- Autoscaling testing and validation
+- Manual scaling capabilities
+- Metrics collection and analysis
+
+**Usage**:
+```bash
+# Create HPA with custom settings
+./manage-hpa.sh create 70 3 15
+
+# Show HPA status
+./manage-hpa.sh status
+
+# Monitor HPA in real-time
+./manage-hpa.sh monitor
+
+# Test autoscaling
+./manage-hpa.sh test 600
+
+# Show HPA metrics
+./manage-hpa.sh metrics
+
+# Manually scale deployment
+./manage-hpa.sh scale 5
+```
+
+#### **HPA Load Testing Script** (`test-hpa-load.sh`)
+
+**Purpose**: Generate load to test HPA scaling behavior
+
+**Features**:
+- Configurable load generation
+- Real-time HPA monitoring
+- Performance metrics collection
+- Comprehensive test reports
+- Automatic cleanup
+
+**Usage**:
+```bash
+# Run HPA load test with default settings
+./test-hpa-load.sh
+
+# Custom load test
+./test-hpa-load.sh --duration 600 --users 50 --rps 20
+
+# Test specific URL
+./test-hpa-load.sh --url https://yourblog.com --duration 300
+```
+
+### **HPA Examples**
+
+#### **Basic HPA Setup**:
+```bash
+# Create HPA for blog deployment
+./manage-hpa.sh create 60 2 10
+
+# Check HPA status
+./manage-hpa.sh status
+
+# Monitor scaling behavior
+./manage-hpa.sh monitor
+```
+
+#### **Load Testing HPA**:
+```bash
+# Generate load to test scaling
+./test-hpa-load.sh --duration 300 --users 20
+
+# Monitor HPA during load test
+./manage-hpa.sh monitor
+```
+
+#### **HPA Troubleshooting**:
+```bash
+# Check HPA status
+./manage-hpa.sh status
+
+# View HPA metrics
+./manage-hpa.sh metrics
+
+# Check HPA events
+kubectl get events -n web --field-selector involvedObject.name=blog-hpa
+```
+
+### **HPA Best Practices**
+
+#### **Scaling Configuration**:
+- **CPU target**: 60-70% for web applications
+- **Memory target**: 80% for memory-intensive workloads
+- **Min replicas**: 2 for high availability
+- **Max replicas**: Based on cluster capacity
+
+#### **Monitoring**:
+- Monitor HPA events and scaling decisions
+- Track resource utilization trends
+- Set up alerts for scaling events
+- Regular load testing to validate behavior
+
+#### **Optimization**:
+- Adjust scaling thresholds based on workload
+- Consider custom metrics for better scaling
+- Implement pod disruption budgets
+- Monitor scaling performance and adjust policies
 
 ## 📋 Deployment Steps
 

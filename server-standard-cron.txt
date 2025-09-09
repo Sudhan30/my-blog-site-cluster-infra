@@ -1,0 +1,26 @@
+# Standard Server Cron Jobs
+# m h  dom mon dow   command
+
+# DuckDNS update - runs every 5 minutes
+*/5 * * * * ~/duckdns/duck.sh >/dev/null 2>&1
+
+# SSL Certificate renewal - runs daily at 8:45 AM
+45 8 * * * "/home/sudhan0312/.acme.sh"/acme.sh --cron --home "/home/sudhan0312/.acme.sh" > /dev/null
+
+# Log management - runs every 2 hours
+0 */2 * * * /tmp/log-cleanup.sh >> /tmp/log-cleanup.log 2>&1
+
+# Logrotate - runs daily at 3 AM
+0 3 * * * /usr/sbin/logrotate /etc/logrotate.d/monitoring-logs >> /tmp/log-cleanup.log 2>&1
+
+# Weekly deep cleanup - runs every Sunday at 4 AM
+0 4 * * 0 /tmp/log-cleanup.sh --deep >> /tmp/log-cleanup.log 2>&1
+
+# Log monitoring - runs every hour
+0 * * * * /tmp/log-monitor.sh >> /tmp/log-monitor.log 2>&1
+
+# GitOps automation - runs every 5 minutes (if automation is set up)
+# */5 * * * * /tmp/flux-reconcile.sh >> /tmp/flux-reconcile.log 2>&1
+
+# Deployment monitoring - runs every 10 minutes (if automation is set up)
+# */10 * * * * /tmp/deployment-monitor.sh >> /tmp/deployment-monitor.log 2>&1

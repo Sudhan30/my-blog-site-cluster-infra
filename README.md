@@ -455,6 +455,62 @@ kubectl -n flux-system logs -l app=source-controller
 # Update automation
 git pull origin main
 ./automation ssh
+```
+
+### Cron Jobs Management
+
+The system includes comprehensive cron job backup and restore functionality:
+
+#### **Cron Backup Script** (`server-cron-backup.sh`)
+
+**Purpose**: Backup and restore server cron jobs for disaster recovery
+
+**Features**:
+- Backup current cron jobs with timestamp
+- Restore cron jobs from backup files
+- Create standard server cron jobs template
+- Validate cron syntax
+- Show current cron jobs
+
+**Usage**:
+```bash
+# Backup current cron jobs
+./server-cron-backup.sh backup
+
+# Show current cron jobs
+./server-cron-backup.sh show
+
+# Create standard server cron jobs file
+./server-cron-backup.sh create
+
+# Install standard server cron jobs
+./server-cron-backup.sh install
+
+# Restore cron jobs from backup
+./server-cron-backup.sh restore server-cron-jobs-20250108-123456.txt
+
+# Validate cron syntax
+./server-cron-backup.sh validate server-cron-jobs.txt
+```
+
+#### **Standard Server Cron Jobs** (`server-cron-jobs.txt`)
+
+**Current server cron jobs**:
+- **DuckDNS update**: Every 5 minutes
+- **SSL certificate renewal**: Daily at 8:45 AM
+- **Log cleanup**: Every 2 hours
+- **Log rotation**: Daily at 3 AM
+- **Deep cleanup**: Weekly on Sunday at 4 AM
+- **Log monitoring**: Every hour
+
+**Disaster Recovery**:
+```bash
+# If server cron jobs are lost, restore them:
+./server-cron-backup.sh install
+
+# Or restore from a specific backup:
+./server-cron-backup.sh restore server-cron-jobs-YYYYMMDD-HHMMSS.txt
+```
 
 # Clean up manually
 /tmp/log-utils.sh clean

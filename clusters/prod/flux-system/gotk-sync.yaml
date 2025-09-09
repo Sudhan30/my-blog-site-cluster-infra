@@ -11,7 +11,7 @@ spec:
     branch: main
   secretRef:
     name: flux-system
-  url: ssh://git@github.com/sudhan30/my-blog-site-cluster-infra
+  url: ssh://git@github.com/Sudhan30/my-blog-site-cluster-infra
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization

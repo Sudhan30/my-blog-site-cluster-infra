@@ -1,0 +1,55 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Blog backend metrics
+  - job_name: 'blog-backend'
+    static_configs:
+      - targets: ['backend:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # PostgreSQL exporter
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 15s
+
+  # Blackbox exporter
+  - job_name: 'blackbox-exporter'
+    static_configs:
+      - targets: ['blackbox-exporter:9115']
+    scrape_interval: 15s
+
+  # Blackbox HTTP checks
+  - job_name: 'blackbox-http'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://blog.sudharsana.dev
+        - http://backend:3001/health
+        - http://prometheus:9090
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+  # Node exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']

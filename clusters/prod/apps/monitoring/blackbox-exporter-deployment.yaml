@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackbox-exporter
+  namespace: web
+  labels:
+    app: blackbox-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blackbox-exporter
+  template:
+    metadata:
+      labels:
+        app: blackbox-exporter
+    spec:
+      containers:
+      - name: blackbox-exporter
+        image: prom/blackbox-exporter:latest
+        ports:
+        - containerPort: 9115
+        args:
+          - '--config.file=/etc/blackbox_exporter/config.yml'
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        volumeMounts:
+        - name: blackbox-config
+          mountPath: /etc/blackbox_exporter
+        livenessProbe:
+          httpGet:
+            path: /metrics
+            port: 9115
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /metrics
+            port: 9115
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: blackbox-config
+        configMap:
+          name: blackbox-exporter-config
+      restartPolicy: Always

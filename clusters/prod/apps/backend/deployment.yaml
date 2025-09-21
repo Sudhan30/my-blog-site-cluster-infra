@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog-backend
+  namespace: web
+  labels:
+    app: blog-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: blog-backend
+  template:
+    metadata:
+      labels:
+        app: blog-backend
+    spec:
+      containers:
+      - name: blog-backend
+        image: node:18-alpine
+        ports:
+        - containerPort: 3001
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: PORT
+          value: "3001"
+        - name: DATABASE_URL
+          value: "postgresql://blog_user:blog_password@postgres-service:5432/blog_db"
+        - name: REDIS_URL
+          value: "redis://redis-service:6379"
+        - name: JWT_SECRET
+          value: "your-jwt-secret-key"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: backend-code
+          mountPath: /app
+        workingDir: /app
+        command: ["/bin/sh"]
+        args: ["-c", "npm install && npm start"]
+      volumes:
+      - name: backend-code
+        configMap:
+          name: blog-backend-code
+          defaultMode: 0755
+      restartPolicy: Always

@@ -1,0 +1,319 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blog-backend-code
+  namespace: web
+data:
+  package.json: |
+    {
+      "name": "blog-backend",
+      "version": "1.0.0",
+      "description": "Backend API for blog likes, comments, and metrics",
+      "main": "server.js",
+      "scripts": {
+        "start": "node server.js",
+        "dev": "nodemon server.js"
+      },
+      "dependencies": {
+        "express": "^4.18.2",
+        "cors": "^2.8.5",
+        "helmet": "^7.0.0",
+        "pg": "^8.11.0",
+        "redis": "^4.6.7",
+        "jsonwebtoken": "^9.0.2",
+        "bcryptjs": "^2.4.3",
+        "express-rate-limit": "^6.8.1",
+        "prom-client": "^15.0.0",
+        "dotenv": "^16.3.1"
+      },
+      "engines": {
+        "node": ">=18.0.0"
+      }
+    }
+  server.js: |
+    const express = require('express');
+    const cors = require('cors');
+    const helmet = require('helmet');
+    const { Pool } = require('pg');
+    const redis = require('redis');
+    const jwt = require('jsonwebtoken');
+    const bcrypt = require('bcryptjs');
+    const rateLimit = require('express-rate-limit');
+    const client = require('prom-client');
+    
+    const app = express();
+    const PORT = process.env.PORT || 3001;
+    
+    // Prometheus metrics
+    const register = new client.Registry();
+    client.collectDefaultMetrics({ register });
+    
+    // Custom metrics
+    const httpRequestsTotal = new client.Counter({
+      name: 'http_requests_total',
+      help: 'Total number of HTTP requests',
+      labelNames: ['method', 'route', 'status_code'],
+      registers: [register]
+    });
+    
+    const likesTotal = new client.Counter({
+      name: 'blog_likes_total',
+      help: 'Total number of blog likes',
+      labelNames: ['post_id'],
+      registers: [register]
+    });
+    
+    const commentsTotal = new client.Counter({
+      name: 'blog_comments_total',
+      help: 'Total number of blog comments',
+      labelNames: ['post_id'],
+      registers: [register]
+    });
+    
+    const responseTime = new client.Histogram({
+      name: 'http_request_duration_seconds',
+      help: 'Duration of HTTP requests in seconds',
+      labelNames: ['method', 'route'],
+      registers: [register]
+    });
+    
+    // Database connection
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+    
+    // Redis connection
+    const redisClient = redis.createClient({
+      url: process.env.REDIS_URL
+    });
+    
+    redisClient.on('error', (err) => console.log('Redis Client Error', err));
+    redisClient.connect();
+    
+    // Middleware
+    app.use(helmet());
+    app.use(cors({
+      origin: ['https://blog.sudharsana.dev', 'http://localhost:3000'],
+      credentials: true
+    }));
+    app.use(express.json({ limit: '10mb' }));
+    app.use(express.urlencoded({ extended: true }));
+    
+    // Rate limiting
+    const limiter = rateLimit({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      max: 100, // limit each IP to 100 requests per windowMs
+      message: 'Too many requests from this IP, please try again later.'
+    });
+    app.use(limiter);
+    
+    // Metrics middleware
+    app.use((req, res, next) => {
+      const start = Date.now();
+      
+      res.on('finish', () => {
+        const duration = (Date.now() - start) / 1000;
+        responseTime.observe({ method: req.method, route: req.route?.path || req.path }, duration);
+        httpRequestsTotal.inc({ method: req.method, route: req.route?.path || req.path, status_code: res.statusCode });
+      });
+      
+      next();
+    });
+    
+    // Health check endpoints
+    app.get('/health', async (req, res) => {
+      try {
+        // Check database connection
+        await pool.query('SELECT 1');
+        // Check Redis connection
+        await redisClient.ping();
+        res.status(200).json({ status: 'healthy', timestamp: new Date().toISOString() });
+      } catch (error) {
+        res.status(503).json({ status: 'unhealthy', error: error.message });
+      }
+    });
+    
+    app.get('/ready', async (req, res) => {
+      try {
+        await pool.query('SELECT 1');
+        await redisClient.ping();
+        res.status(200).json({ status: 'ready' });
+      } catch (error) {
+        res.status(503).json({ status: 'not ready', error: error.message });
+      }
+    });
+    
+    // Metrics endpoint
+    app.get('/metrics', async (req, res) => {
+      res.set('Content-Type', register.contentType);
+      res.end(await register.metrics());
+    });
+    
+    // API Routes
+    
+    // Get post likes
+    app.get('/api/posts/:postId/likes', async (req, res) => {
+      try {
+        const { postId } = req.params;
+        const result = await pool.query('SELECT COUNT(*) as count FROM likes WHERE post_id = $1', [postId]);
+        res.json({ postId, likes: parseInt(result.rows[0].count) });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Like a post
+    app.post('/api/posts/:postId/like', async (req, res) => {
+      try {
+        const { postId } = req.params;
+        const { userId, userIP } = req.body;
+        
+        // Check if already liked (by user or IP)
+        const existingLike = await pool.query(
+          'SELECT id FROM likes WHERE post_id = $1 AND (user_id = $2 OR user_ip = $3)',
+          [postId, userId, userIP]
+        );
+        
+        if (existingLike.rows.length > 0) {
+          return res.status(400).json({ error: 'Already liked' });
+        }
+        
+        // Add like
+        await pool.query(
+          'INSERT INTO likes (post_id, user_id, user_ip, created_at) VALUES ($1, $2, $3, NOW())',
+          [postId, userId, userIP]
+        );
+        
+        // Update metrics
+        likesTotal.inc({ post_id: postId });
+        
+        // Cache the like count
+        const countResult = await pool.query('SELECT COUNT(*) as count FROM likes WHERE post_id = $1', [postId]);
+        await redisClient.setEx(`likes:${postId}`, 300, countResult.rows[0].count);
+        
+        res.json({ success: true, likes: parseInt(countResult.rows[0].count) });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Get post comments
+    app.get('/api/posts/:postId/comments', async (req, res) => {
+      try {
+        const { postId } = req.params;
+        const { page = 1, limit = 10 } = req.query;
+        const offset = (page - 1) * limit;
+        
+        const result = await pool.query(
+          'SELECT id, content, author_name, author_email, created_at FROM comments WHERE post_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+          [postId, limit, offset]
+        );
+        
+        const countResult = await pool.query('SELECT COUNT(*) as count FROM comments WHERE post_id = $1', [postId]);
+        
+        res.json({
+          postId,
+          comments: result.rows,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: parseInt(countResult.rows[0].count),
+            pages: Math.ceil(countResult.rows[0].count / limit)
+          }
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Add comment
+    app.post('/api/posts/:postId/comments', async (req, res) => {
+      try {
+        const { postId } = req.params;
+        const { content, authorName, authorEmail } = req.body;
+        
+        if (!content || !authorName) {
+          return res.status(400).json({ error: 'Content and author name are required' });
+        }
+        
+        const result = await pool.query(
+          'INSERT INTO comments (post_id, content, author_name, author_email, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, created_at',
+          [postId, content, authorName, authorEmail]
+        );
+        
+        // Update metrics
+        commentsTotal.inc({ post_id: postId });
+        
+        res.status(201).json({
+          success: true,
+          comment: result.rows[0]
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Get analytics data
+    app.get('/api/analytics', async (req, res) => {
+      try {
+        const { period = '7d' } = req.query;
+        
+        // Get total likes
+        const likesResult = await pool.query('SELECT COUNT(*) as count FROM likes');
+        
+        // Get total comments
+        const commentsResult = await pool.query('SELECT COUNT(*) as count FROM comments');
+        
+        // Get likes by day
+        const likesByDay = await pool.query(`
+          SELECT DATE(created_at) as date, COUNT(*) as count 
+          FROM likes 
+          WHERE created_at >= NOW() - INTERVAL '${period}'
+          GROUP BY DATE(created_at) 
+          ORDER BY date
+        `);
+        
+        // Get comments by day
+        const commentsByDay = await pool.query(`
+          SELECT DATE(created_at) as date, COUNT(*) as count 
+          FROM comments 
+          WHERE created_at >= NOW() - INTERVAL '${period}'
+          GROUP BY DATE(created_at) 
+          ORDER BY date
+        `);
+        
+        res.json({
+          totalLikes: parseInt(likesResult.rows[0].count),
+          totalComments: parseInt(commentsResult.rows[0].count),
+          likesByDay: likesByDay.rows,
+          commentsByDay: commentsByDay.rows
+        });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+    
+    // Error handling middleware
+    app.use((err, req, res, next) => {
+      console.error(err.stack);
+      res.status(500).json({ error: 'Something went wrong!' });
+    });
+    
+    // 404 handler
+    app.use('*', (req, res) => {
+      res.status(404).json({ error: 'Route not found' });
+    });
+    
+    // Start server
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Blog backend server running on port ${PORT}`);
+    });
+    
+    // Graceful shutdown
+    process.on('SIGTERM', async () => {
+      console.log('SIGTERM received, shutting down gracefully');
+      await pool.end();
+      await redisClient.quit();
+      process.exit(0);
+    });

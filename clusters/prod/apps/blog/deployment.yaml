@@ -17,10 +17,10 @@ spec:
       labels: { app: blog }
     spec:
       imagePullSecrets:
-        - name: ghcr-creds
+        - name: dockerhub-creds
       containers:
         - name: blog
-          image: ghcr.io/sudhan30/my-blog-site-cluster-infra/blog-site:latest
+          image: docker.io/sudhan03/blog-site:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 80

@@ -16,10 +16,10 @@ spec:
         app: blog-backend
     spec:
       imagePullSecrets:
-        - name: ghcr-creds
+        - name: dockerhub-creds
       containers:
       - name: blog-backend
-        image: ghcr.io/sudhan30/my-blog-site-cluster-infra/blog-backend:latest
+        image: docker.io/sudhan03/blog-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 3001

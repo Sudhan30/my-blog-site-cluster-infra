@@ -4,5 +4,5 @@ metadata:
   name: blog-site
   namespace: flux-system
 spec:
-  image: ghcr.io/sudhan30/my-blog-site-cluster-infra/blog-site
+  image: docker.io/sudhan03/blog-site
   interval: 1m

@@ -1,0 +1,9 @@
+# Ignore everything except what we need
+*
+
+# Allow specific files
+!package.json
+!package-lock.json
+!server.js
+!healthcheck.js
+!Dockerfile

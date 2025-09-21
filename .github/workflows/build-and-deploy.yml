@@ -8,8 +8,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME_BLOG: ${{ github.repository }}/blog-site
-  IMAGE_NAME_BACKEND: ${{ github.repository }}/blog-backend
+  IMAGE_NAME_BLOG: sudhan30/my-blog-site-cluster-infra/blog-site
+  IMAGE_NAME_BACKEND: sudhan30/my-blog-site-cluster-infra/blog-backend
 
 jobs:
   build-blog:

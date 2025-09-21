@@ -6,6 +6,6 @@ resources:
   - service.yaml
   - ingress.yaml
   - hpa.yaml
-images:
-  - name: docker.io/sudhan03/blog-site
-    newTag: latest
+  - imageautomation.yaml
+  - imagepolicy.yaml
+  - imagerepository.yaml

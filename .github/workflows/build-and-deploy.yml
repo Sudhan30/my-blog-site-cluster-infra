@@ -94,47 +94,29 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-  update-manifests:
+  notify-flux:
     needs: [build-blog, build-backend]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: read
     
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
-    
-    - name: Set up Git
+    - name: Notify Flux of new images
       run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-    
-    - name: Update image tags
-      run: |
-        # Update blog image tag
-        BLOG_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}:main-${{ github.sha }}"
-        sed -i "s|image: docker.io/sudhan03/blog-site:latest|image: ${BLOG_TAG}|g" clusters/prod/apps/blog/deployment.yaml
-        
-        # Update backend image tag
-        BACKEND_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:main-${{ github.sha }}"
-        sed -i "s|image: node:18-alpine|image: ${BACKEND_TAG}|g" clusters/prod/apps/backend/deployment.yaml
-        
-        # Update imagePullPolicy to Always for new images
-        sed -i "s|imagePullPolicy: IfNotPresent|imagePullPolicy: Always|g" clusters/prod/apps/blog/deployment.yaml
-        sed -i "s|imagePullPolicy: IfNotPresent|imagePullPolicy: Always|g" clusters/prod/apps/backend/deployment.yaml
-    
-    - name: Commit and push changes
-      run: |
-        git add clusters/prod/apps/blog/deployment.yaml clusters/prod/apps/backend/deployment.yaml
-        git diff --staged --quiet || git commit -m "Update image tags to latest builds [skip ci]"
-        git push
+        echo "New images built and pushed to GHCR:"
+        echo "Blog: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}:main-${{ github.sha }}"
+        echo "Backend: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:main-${{ github.sha }}"
+        echo "Flux Image Automation will automatically update the manifests"
 
   deploy:
-    needs: [update-manifests]
+    needs: [notify-flux]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: read
     
     steps:
     - name: Checkout repository

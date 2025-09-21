@@ -15,9 +15,12 @@ spec:
       labels:
         app: blog-backend
     spec:
+      imagePullSecrets:
+        - name: ghcr-creds
       containers:
       - name: blog-backend
         image: ghcr.io/sudhan30/my-blog-site-cluster-infra/blog-backend:latest
+        imagePullPolicy: Always
         ports:
         - containerPort: 3001
         env:
@@ -50,15 +53,3 @@ spec:
             port: 3001
           initialDelaySeconds: 5
           periodSeconds: 5
-        volumeMounts:
-        - name: backend-code
-          mountPath: /app
-        workingDir: /app
-        command: ["/bin/sh"]
-        args: ["-c", "npm install && npm start"]
-      volumes:
-      - name: backend-code
-        configMap:
-          name: blog-backend-code
-          defaultMode: 0755
-      restartPolicy: Always

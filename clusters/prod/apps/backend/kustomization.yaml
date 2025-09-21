@@ -8,3 +8,6 @@ resources:
   - postgres-service.yaml
   - postgres-pvc.yaml
   - postgres-init-scripts.yaml
+  - imageautomation.yaml
+  - imagepolicy.yaml
+  - imagerepository.yaml

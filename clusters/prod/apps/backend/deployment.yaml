@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: blog-backend
-        image: node:18-alpine
+        image: ghcr.io/sudhan30/my-blog-site-cluster-infra/blog-backend:latest
         ports:
         - containerPort: 3001
         env:

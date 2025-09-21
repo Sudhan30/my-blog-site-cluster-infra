@@ -1,0 +1,176 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME_BLOG: ${{ github.repository }}/blog-site
+  IMAGE_NAME_BACKEND: ${{ github.repository }}/blog-backend
+
+jobs:
+  build-blog:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata for blog
+      id: meta-blog
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push blog image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./blog
+        push: true
+        tags: ${{ steps.meta-blog.outputs.tags }}
+        labels: ${{ steps.meta-blog.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  build-backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Extract metadata for backend
+      id: meta-backend
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+    
+    - name: Build and push backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        push: true
+        tags: ${{ steps.meta-backend.outputs.tags }}
+        labels: ${{ steps.meta-backend.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  update-manifests:
+    needs: [build-blog, build-backend]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Set up Git
+      run: |
+        git config --global user.name "GitHub Actions"
+        git config --global user.email "actions@github.com"
+    
+    - name: Update image tags
+      run: |
+        # Update blog image tag
+        BLOG_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}:main-${{ github.sha }}"
+        sed -i "s|image: docker.io/sudhan03/blog-site:latest|image: ${BLOG_TAG}|g" clusters/prod/apps/blog/deployment.yaml
+        
+        # Update backend image tag
+        BACKEND_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:main-${{ github.sha }}"
+        sed -i "s|image: node:18-alpine|image: ${BACKEND_TAG}|g" clusters/prod/apps/backend/deployment.yaml
+        
+        # Update imagePullPolicy to Always for new images
+        sed -i "s|imagePullPolicy: IfNotPresent|imagePullPolicy: Always|g" clusters/prod/apps/blog/deployment.yaml
+        sed -i "s|imagePullPolicy: IfNotPresent|imagePullPolicy: Always|g" clusters/prod/apps/backend/deployment.yaml
+    
+    - name: Commit and push changes
+      run: |
+        git add clusters/prod/apps/blog/deployment.yaml clusters/prod/apps/backend/deployment.yaml
+        git diff --staged --quiet || git commit -m "Update image tags to latest builds [skip ci]"
+        git push
+
+  deploy:
+    needs: [update-manifests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+    
+    - name: Wait for Flux sync
+      run: |
+        kubectl wait --for=condition=ready --timeout=300s kustomization/blog -n flux-system
+        kubectl wait --for=condition=ready --timeout=300s kustomization/backend -n flux-system
+        kubectl wait --for=condition=ready --timeout=300s kustomization/monitoring -n flux-system
+    
+    - name: Verify deployment
+      run: |
+        kubectl get pods -n web
+        kubectl get deployments -n web
+        kubectl get services -n web
+    
+    - name: Test API endpoints
+      run: |
+        # Wait for services to be ready
+        sleep 30
+        
+        # Test health endpoints
+        kubectl run test-pod --image=curlimages/curl --rm -i --restart=Never -- \
+          curl -f http://blog-backend-service:3001/health || echo "Backend health check failed"
+        
+        # Test blog site
+        kubectl run test-pod --image=curlimages/curl --rm -i --restart=Never -- \
+          curl -f http://blog-service:80/health || echo "Blog health check failed"

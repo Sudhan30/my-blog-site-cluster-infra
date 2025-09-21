@@ -1,0 +1,8 @@
+# Ignore everything except what we need
+*
+
+# Allow specific files and directories
+!nginx.conf
+!default.conf
+!Dockerfile
+!public/

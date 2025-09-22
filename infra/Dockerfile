@@ -1,5 +1,5 @@
 # Multi-stage build for blog-site-infra
-FROM alpine:latest as base
+FROM alpine:latest AS base
 
 # Install common tools
 RUN apk add --no-cache \
@@ -7,7 +7,15 @@ RUN apk add --no-cache \
     wget \
     bash \
     supervisor \
-    tzdata
+    tzdata \
+    postgresql \
+    redis
+
+# Create necessary users
+RUN adduser -D -s /bin/sh postgres && \
+    adduser -D -s /bin/sh redis && \
+    adduser -D -s /bin/sh prometheus && \
+    adduser -D -s /bin/sh grafana
 
 # Set timezone
 ENV TZ=UTC

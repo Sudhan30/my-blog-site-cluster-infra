@@ -3,10 +3,7 @@
 # Start PostgreSQL
 echo "Starting PostgreSQL..."
 
-# Install PostgreSQL if not present
-if ! command -v postgres &> /dev/null; then
-    apk add --no-cache postgresql postgresql-contrib
-fi
+# PostgreSQL is already installed in the base image
 
 # Initialize database if not exists
 if [ ! -d "/var/lib/postgresql/data" ]; then

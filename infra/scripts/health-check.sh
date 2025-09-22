@@ -14,14 +14,14 @@ while true; do
     fi
     
     # Check PostgreSQL
-    if pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
+    if command -v pg_isready >/dev/null 2>&1 && pg_isready -h localhost -p 5432 >/dev/null 2>&1; then
         echo "✅ PostgreSQL: Healthy"
     else
         echo "❌ PostgreSQL: Unhealthy"
     fi
     
     # Check Redis
-    if redis-cli ping >/dev/null 2>&1; then
+    if command -v redis-cli >/dev/null 2>&1 && redis-cli ping >/dev/null 2>&1; then
         echo "✅ Redis: Healthy"
     else
         echo "❌ Redis: Unhealthy"

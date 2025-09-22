@@ -3,10 +3,7 @@
 # Start Redis
 echo "Starting Redis..."
 
-# Install Redis if not present
-if ! command -v redis-server &> /dev/null; then
-    apk add --no-cache redis
-fi
+# Redis is already installed in the base image
 
 # Create Redis data directory
 mkdir -p /var/lib/redis

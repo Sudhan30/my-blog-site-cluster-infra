@@ -29,7 +29,7 @@ spec:
         - name: PORT
           value: "3001"
         - name: DATABASE_URL
-          value: "postgresql://blog_user:blog_password@postgres-service:5432/blog_db"
+          value: "postgresql://blog_user:blog_password@postgres-service:5432/blog_db?sslmode=disable"
         - name: REDIS_URL
           value: "redis://redis-service:6379"
         - name: JWT_SECRET

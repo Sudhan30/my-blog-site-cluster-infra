@@ -1,0 +1,62 @@
+# This goes in: my-blog-site-sudhanverse/.github/workflows/docker.yml
+
+name: build-and-push
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions: 
+      contents: read
+      packages: write
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Generate content & Build (Angular)
+        run: npm run build:prod
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/blog-site:latest
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/blog-site:${{ github.sha }}
+
+      # NEW: Trigger infra repo update
+      - name: Trigger Infrastructure Update
+        uses: peter-evans/repository-dispatch@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          token: ${{ secrets.INFRA_REPO_TOKEN }}
+          repository: Sudhan30/my-blog-site-cluster-infra
+          event-type: blog-updated
+          client-payload: |
+            {
+              "image_tag": "${{ github.sha }}",
+              "image_name": "blog-site",
+              "dockerhub_username": "${{ secrets.DOCKERHUB_USERNAME }}",
+              "commit_message": "${{ github.event.head_commit.message }}",
+              "author": "${{ github.actor }}",
+              "timestamp": "${{ github.event.head_commit.timestamp }}"
+            }

@@ -1,0 +1,54 @@
+name: Blog Update Listener
+
+on:
+  repository_dispatch:
+    types: [blog-updated]
+
+jobs:
+  update-blog-deployment:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Update blog deployment
+      run: |
+        echo "🚀 Updating blog deployment with new image..."
+        echo "📦 Image: docker.io/${{ github.event.client_payload.dockerhub_username }}/blog-site:${{ github.event.client_payload.image_tag }}"
+        echo "📝 Commit: ${{ github.event.client_payload.commit_message }}"
+        echo "👤 Author: ${{ github.event.client_payload.author }}"
+        
+        # Update the deployment manifest
+        sed -i "s|image: docker.io/sudhan03/blog-site:.*|image: docker.io/${{ github.event.client_payload.dockerhub_username }}/blog-site:${{ github.event.client_payload.image_tag }}|g" clusters/prod/apps/blog/deployment.yaml
+        
+        # Verify the change
+        echo "✅ Updated deployment manifest:"
+        grep "image:" clusters/prod/apps/blog/deployment.yaml
+    
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add clusters/prod/apps/blog/deployment.yaml
+        git commit -m "🚀 Auto-update blog image to ${{ github.event.client_payload.image_tag }}
+
+        📝 Triggered by blog update from: ${{ github.event.client_payload.author }}
+        💬 Commit: ${{ github.event.client_payload.commit_message }}
+        🏷️  Image tag: ${{ github.event.client_payload.image_tag }}
+        🐳 Docker Hub: docker.io/${{ github.event.client_payload.dockerhub_username }}/blog-site"
+        
+        git push origin main
+    
+    - name: Deployment notification
+      run: |
+        echo "✅ Blog deployment updated successfully!"
+        echo "📦 New image: docker.io/${{ github.event.client_payload.dockerhub_username }}/blog-site:${{ github.event.client_payload.image_tag }}"
+        echo "🔄 Flux CD will now deploy the updated image to your cluster"
+        echo "⏱️  Expected deployment time: 2-3 minutes"
+        echo "🔍 Monitor with: kubectl get pods -n web"
+        echo "🌐 Your updated blog will be available at: https://blog.sudharsana.dev"

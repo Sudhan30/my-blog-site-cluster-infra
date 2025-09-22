@@ -3,7 +3,7 @@
 This document provides comprehensive documentation for the Blog API endpoints that your frontend can use to interact with the database.
 
 ## 📋 **Base URL**
-- **Production**: `https://api.sudharsana.dev`
+- **Production**: `https://blog.sudharsana.dev/api` (Reverse Proxy)
 - **Development**: `http://localhost:3001` (via port forward)
 
 ## 🔐 **Authentication**
@@ -217,7 +217,7 @@ GET /metrics
 
 ```typescript
 class BlogApiService {
-  private baseUrl = 'https://api.sudharsana.dev';
+  private baseUrl = '/api'; // Same domain, reverse proxy setup
   private clientId = this.getOrCreateClientId();
 
   private getOrCreateClientId(): string {
@@ -295,19 +295,19 @@ class BlogApiService {
 
 ```javascript
 // Get all posts
-const posts = await fetch('https://api.sudharsana.dev/api/posts')
+const posts = await fetch('/api/posts')
   .then(res => res.json());
 
 // Get single post
-const post = await fetch('https://api.sudharsana.dev/api/posts/my-first-blog')
+const post = await fetch('/api/posts/my-first-blog')
   .then(res => res.json());
 
 // Get comments
-const comments = await fetch('https://api.sudharsana.dev/api/posts/1/comments')
+const comments = await fetch('/api/posts/1/comments')
   .then(res => res.json());
 
 // Add comment
-const newComment = await fetch('https://api.sudharsana.dev/api/posts/1/comments', {
+const newComment = await fetch('/api/posts/1/comments', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -318,7 +318,7 @@ const newComment = await fetch('https://api.sudharsana.dev/api/posts/1/comments'
 }).then(res => res.json());
 
 // Like a post
-const likeResult = await fetch('https://api.sudharsana.dev/api/posts/1/like', {
+const likeResult = await fetch('/api/posts/1/like', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -396,27 +396,27 @@ const likeResult = await fetch('https://api.sudharsana.dev/api/posts/1/like', {
 
 ### **Health Check**
 ```bash
-curl https://api.sudharsana.dev/health
+curl https://blog.sudharsana.dev/api/health
 ```
 
 ### **Test API Endpoints**
 ```bash
 # Get posts
-curl https://api.sudharsana.dev/api/posts
+curl https://blog.sudharsana.dev/api/posts
 
 # Get single post
-curl https://api.sudharsana.dev/api/posts/my-first-blog
+curl https://blog.sudharsana.dev/api/posts/my-first-blog
 
 # Get comments
-curl https://api.sudharsana.dev/api/posts/1/comments
+curl https://blog.sudharsana.dev/api/posts/1/comments
 
 # Like a post
-curl -X POST https://api.sudharsana.dev/api/posts/1/like \
+curl -X POST https://blog.sudharsana.dev/api/posts/1/like \
   -H "Content-Type: application/json" \
   -d '{"clientId": "test-client-id"}'
 
 # Add comment
-curl -X POST https://api.sudharsana.dev/api/posts/1/comments \
+curl -X POST https://blog.sudharsana.dev/api/posts/1/comments \
   -H "Content-Type: application/json" \
   -d '{"content": "Great post!", "displayName": "Test User", "clientId": "test-client-id"}'
 ```

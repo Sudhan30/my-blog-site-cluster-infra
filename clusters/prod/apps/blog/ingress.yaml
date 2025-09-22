@@ -5,12 +5,23 @@ metadata:
   namespace: web
   annotations:
     traefik.ingress.kubernetes.io/router.tls.certresolver: le
+    # Add CORS headers for API routes
+    traefik.ingress.kubernetes.io/custom-request-headers: "X-Forwarded-Proto:https"
 spec:
   ingressClassName: traefik
   rules:
     - host: blog.sudharsana.dev
       http:
         paths:
+          # Backend API routes - higher priority
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: blog-backend-service
+                port:
+                  number: 3001
+          # Frontend routes - lower priority
           - path: /
             pathType: Prefix
             backend:

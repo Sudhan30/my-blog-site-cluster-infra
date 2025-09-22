@@ -1,0 +1,101 @@
+name: Build Blog from External Repository
+
+on:
+  workflow_dispatch:
+    inputs:
+      blog_repo_branch:
+        description: 'Blog repository branch to build'
+        required: true
+        default: 'main'
+  schedule:
+    # Run daily at 2 AM UTC to check for updates
+    - cron: '0 2 * * *'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME_BLOG: sudhan03/blog-site
+  BLOG_REPO: Sudhan30/my-blog-site-sudhanverse
+
+jobs:
+  build-blog-from-external:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout current repository (for manifests)
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Checkout blog repository
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ env.BLOG_REPO }}
+        path: ./blog-source
+        token: ${{ secrets.GITHUB_TOKEN }}
+        ref: ${{ github.event.inputs.blog_repo_branch || 'main' }}
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Get blog repository info
+      id: blog-info
+      run: |
+        cd blog-source
+        echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+        echo "commit_message=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+        echo "branch=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_OUTPUT
+    
+    - name: Build and push blog image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./blog-source
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}:blog-${{ steps.blog-info.outputs.commit_sha }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}:latest
+        labels: |
+          org.opencontainers.image.title=Blog Site (from sudhanverse)
+          org.opencontainers.image.description=Blog site built from external repository
+          org.opencontainers.image.url=https://github.com/${{ env.BLOG_REPO }}
+          org.opencontainers.image.source=https://github.com/${{ env.BLOG_REPO }}
+          org.opencontainers.image.version=${{ steps.blog-info.outputs.commit_sha }}
+          org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+          org.opencontainers.image.revision=${{ steps.blog-info.outputs.commit_message }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    
+    - name: Update blog deployment manifest
+      run: |
+        echo "📝 Updating blog deployment manifest with new image..."
+        sed -i "s|image: docker.io/sudhan03/blog-site:.*|image: docker.io/sudhan03/blog-site:blog-${{ steps.blog-info.outputs.commit_sha }}|g" clusters/prod/apps/blog/deployment.yaml
+        
+        # Commit and push the updated manifest
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add clusters/prod/apps/blog/deployment.yaml
+        git commit -m "🚀 Update blog image to blog-${{ steps.blog-info.outputs.commit_sha }}
+
+        - Built from: ${{ env.BLOG_REPO }}@${{ steps.blog-info.outputs.branch }}
+        - Commit: ${{ steps.blog-info.outputs.commit_message }}
+        - SHA: ${{ steps.blog-info.outputs.commit_sha }}"
+        git push origin main
+    
+    - name: Deployment summary
+      run: |
+        echo "✅ Blog image built and deployed successfully!"
+        echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}:blog-${{ steps.blog-info.outputs.commit_sha }}"
+        echo "📝 Source: ${{ env.BLOG_REPO }}@${{ steps.blog-info.outputs.branch }}"
+        echo "🔗 Commit: ${{ steps.blog-info.outputs.commit_message }}"
+        echo ""
+        echo "🔄 Flux CD will now deploy the updated image to your cluster"
+        echo "⏱️  Expected deployment time: 2-3 minutes"
+        echo "🔍 Monitor with: kubectl get pods -n web"

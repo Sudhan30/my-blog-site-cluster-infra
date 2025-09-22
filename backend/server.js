@@ -3,11 +3,10 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { Pool } = require('pg');
 const redis = require('redis');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
 const client = require('prom-client');
 const winston = require('winston');
+const crypto = require('crypto');
 
 // Configure logging
 const logger = winston.createLogger({
@@ -72,7 +71,7 @@ const activeConnections = new client.Gauge({
 // Database connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  ssl: false, // Disabled for your setup
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
@@ -87,10 +86,19 @@ redisClient.on('error', (err) => logger.error('Redis Client Error', err));
 redisClient.on('connect', () => logger.info('Redis connected'));
 redisClient.connect();
 
+// Utility functions
+const hashIP = (ip) => {
+  return crypto.createHash('sha256').update(ip).digest('hex');
+};
+
+const generateClientId = () => {
+  return crypto.randomUUID();
+};
+
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['https://blog.sudharsana.dev', 'http://localhost:3000'],
+  origin: ['https://blog.sudharsana.dev', 'http://localhost:3000', 'http://localhost:4200'],
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -124,9 +132,7 @@ app.use((req, res, next) => {
 // Health check endpoints
 app.get('/health', async (req, res) => {
   try {
-    // Check database connection
     await pool.query('SELECT 1');
-    // Check Redis connection
     await redisClient.ping();
     res.status(200).json({ 
       status: 'healthy', 
@@ -159,6 +165,80 @@ app.get('/metrics', async (req, res) => {
 
 // API Routes
 
+// Get all posts
+app.get('/api/posts', async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    const offsetNum = (pageNum - 1) * limitNum;
+    
+    const result = await pool.query(`
+      SELECT 
+        p.id,
+        p.slug,
+        p.title,
+        p.content,
+        p.created_at,
+        COUNT(DISTINCT c.id) as comment_count,
+        COUNT(DISTINCT l.id) as like_count
+      FROM posts p
+      LEFT JOIN comments c ON p.id = c.post_id AND c.status = 'approved'
+      LEFT JOIN likes l ON p.id = l.post_id
+      GROUP BY p.id, p.slug, p.title, p.content, p.created_at
+      ORDER BY p.created_at DESC
+      LIMIT $1 OFFSET $2
+    `, [limitNum, offsetNum]);
+    
+    const countResult = await pool.query('SELECT COUNT(*) as count FROM posts');
+    
+    res.json({
+      posts: result.rows,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: parseInt(countResult.rows[0].count),
+        pages: Math.ceil(countResult.rows[0].count / limitNum)
+      }
+    });
+  } catch (error) {
+    logger.error('Error getting posts', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single post
+app.get('/api/posts/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    
+    const result = await pool.query(`
+      SELECT 
+        p.id,
+        p.slug,
+        p.title,
+        p.content,
+        p.created_at,
+        COUNT(DISTINCT c.id) as comment_count,
+        COUNT(DISTINCT l.id) as like_count
+      FROM posts p
+      LEFT JOIN comments c ON p.id = c.post_id AND c.status = 'approved'
+      LEFT JOIN likes l ON p.id = l.post_id
+      WHERE p.slug = $1
+      GROUP BY p.id, p.slug, p.title, p.content, p.created_at
+    `, [slug]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    
+    res.json({ post: result.rows[0] });
+  } catch (error) {
+    logger.error('Error getting post', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get post likes
 app.get('/api/posts/:postId/likes', async (req, res) => {
   try {
@@ -187,17 +267,21 @@ app.get('/api/posts/:postId/likes', async (req, res) => {
 app.post('/api/posts/:postId/like', async (req, res) => {
   try {
     const { postId } = req.params;
-    const { userId, userIP } = req.body;
+    const { clientId, userIP } = req.body;
     
     // Validate input
     if (!postId) {
       return res.status(400).json({ error: 'Post ID is required' });
     }
     
-    // Check if already liked (by user or IP)
+    // Generate client ID if not provided
+    const finalClientId = clientId || generateClientId();
+    const ipHash = userIP ? hashIP(userIP) : null;
+    
+    // Check if already liked (by client_id or ip_hash)
     const existingLike = await pool.query(
-      'SELECT id FROM likes WHERE post_id = $1 AND (user_id = $2 OR user_ip = $3)',
-      [postId, userId, userIP]
+      'SELECT id FROM likes WHERE post_id = $1 AND (client_id = $2 OR ip_hash = $3)',
+      [postId, finalClientId, ipHash]
     );
     
     if (existingLike.rows.length > 0) {
@@ -206,8 +290,8 @@ app.post('/api/posts/:postId/like', async (req, res) => {
     
     // Add like
     await pool.query(
-      'INSERT INTO likes (post_id, user_id, user_ip, created_at) VALUES ($1, $2, $3, NOW())',
-      [postId, userId, userIP]
+      'INSERT INTO likes (post_id, client_id, ip_hash, created_at) VALUES ($1, $2, $3, NOW())',
+      [postId, finalClientId, ipHash]
     );
     
     // Update metrics
@@ -218,8 +302,8 @@ app.post('/api/posts/:postId/like', async (req, res) => {
     const count = parseInt(countResult.rows[0].count);
     await redisClient.setEx(`likes:${postId}`, 300, count);
     
-    logger.info(`Post ${postId} liked by ${userId || userIP}`);
-    res.json({ success: true, likes: count });
+    logger.info(`Post ${postId} liked by ${finalClientId || ipHash}`);
+    res.json({ success: true, likes: count, clientId: finalClientId });
   } catch (error) {
     logger.error('Error liking post', error);
     res.status(500).json({ error: error.message });
@@ -231,19 +315,16 @@ app.get('/api/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params;
     const { page = 1, limit = 10 } = req.query;
-    const offset = (page - 1) * limit;
-    
-    // Validate pagination
     const pageNum = Math.max(1, parseInt(page));
     const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
     const offsetNum = (pageNum - 1) * limitNum;
     
     const result = await pool.query(
-      'SELECT id, content, author_name, author_email, created_at FROM comments WHERE post_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
-      [postId, limitNum, offsetNum]
+      'SELECT id, display_name, content, created_at FROM comments WHERE post_id = $1 AND status = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4',
+      [postId, 'approved', limitNum, offsetNum]
     );
     
-    const countResult = await pool.query('SELECT COUNT(*) as count FROM comments WHERE post_id = $1', [postId]);
+    const countResult = await pool.query('SELECT COUNT(*) as count FROM comments WHERE post_id = $1 AND status = $2', [postId, 'approved']);
     
     res.json({
       postId,
@@ -265,29 +346,35 @@ app.get('/api/posts/:postId/comments', async (req, res) => {
 app.post('/api/posts/:postId/comments', async (req, res) => {
   try {
     const { postId } = req.params;
-    const { content, authorName, authorEmail } = req.body;
+    const { content, displayName, clientId, userIP } = req.body;
     
     // Validate input
-    if (!content || !authorName) {
-      return res.status(400).json({ error: 'Content and author name are required' });
+    if (!content || !displayName) {
+      return res.status(400).json({ error: 'Content and display name are required' });
     }
     
-    if (content.length > 1000) {
-      return res.status(400).json({ error: 'Comment too long (max 1000 characters)' });
+    if (content.length < 1 || content.length > 2000) {
+      return res.status(400).json({ error: 'Comment must be between 1 and 2000 characters' });
     }
+    
+    // Generate display name if not provided
+    const finalDisplayName = displayName || 'Anonymous';
+    const finalClientId = clientId || generateClientId();
+    const ipHash = userIP ? hashIP(userIP) : null;
     
     const result = await pool.query(
-      'INSERT INTO comments (post_id, content, author_name, author_email, created_at) VALUES ($1, $2, $3, $4, NOW()) RETURNING id, created_at',
-      [postId, content, authorName, authorEmail]
+      'INSERT INTO comments (post_id, display_name, content, client_id, ip_hash, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id, created_at',
+      [postId, finalDisplayName, content, finalClientId, ipHash]
     );
     
     // Update metrics
     commentsTotal.inc({ post_id: postId });
     
-    logger.info(`Comment added to post ${postId} by ${authorName}`);
+    logger.info(`Comment added to post ${postId} by ${finalDisplayName}`);
     res.status(201).json({
       success: true,
-      comment: result.rows[0]
+      comment: result.rows[0],
+      clientId: finalClientId
     });
   } catch (error) {
     logger.error('Error adding comment', error);
@@ -310,7 +397,7 @@ app.get('/api/analytics', async (req, res) => {
     const likesResult = await pool.query('SELECT COUNT(*) as count FROM likes');
     
     // Get total comments
-    const commentsResult = await pool.query('SELECT COUNT(*) as count FROM comments');
+    const commentsResult = await pool.query('SELECT COUNT(*) as count FROM comments WHERE status = $1', ['approved']);
     
     // Get likes by day
     const likesByDay = await pool.query(`
@@ -325,7 +412,7 @@ app.get('/api/analytics', async (req, res) => {
     const commentsByDay = await pool.query(`
       SELECT DATE(created_at) as date, COUNT(*) as count 
       FROM comments 
-      WHERE created_at >= NOW() - INTERVAL '${period}'
+      WHERE created_at >= NOW() - INTERVAL '${period}' AND status = 'approved'
       GROUP BY DATE(created_at) 
       ORDER BY date
     `);

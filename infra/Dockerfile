@@ -11,11 +11,9 @@ RUN apk add --no-cache \
     postgresql \
     redis
 
-# Create necessary users
-RUN adduser -D -s /bin/sh postgres && \
-    adduser -D -s /bin/sh redis && \
-    adduser -D -s /bin/sh prometheus && \
-    adduser -D -s /bin/sh grafana
+# Create necessary users (skip if already exist)
+RUN adduser -D -s /bin/sh prometheus 2>/dev/null || true && \
+    adduser -D -s /bin/sh grafana 2>/dev/null || true
 
 # Set timezone
 ENV TZ=UTC

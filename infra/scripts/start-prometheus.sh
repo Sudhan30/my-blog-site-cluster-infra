@@ -13,7 +13,7 @@ fi
 
 # Create Prometheus data directory
 mkdir -p /var/lib/prometheus
-chown prometheus:prometheus /var/lib/prometheus 2>/dev/null || true
+chown prometheus:prometheus /var/lib/prometheus 2>/dev/null || chown 1000:1000 /var/lib/prometheus
 
 # Start Prometheus
 prometheus \

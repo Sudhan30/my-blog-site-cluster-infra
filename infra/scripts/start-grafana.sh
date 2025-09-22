@@ -13,7 +13,7 @@ fi
 
 # Create Grafana data directory
 mkdir -p /var/lib/grafana
-chown grafana:grafana /var/lib/grafana 2>/dev/null || true
+chown grafana:grafana /var/lib/grafana 2>/dev/null || chown 1001:1001 /var/lib/grafana
 
 # Start Grafana
 grafana-server \

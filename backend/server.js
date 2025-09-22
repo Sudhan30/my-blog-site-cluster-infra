@@ -132,7 +132,8 @@ app.use((req, res, next) => {
 });
 
 // Health check endpoints
-app.get('/health', async (req, res) => {
+// Health check (handle both /health and /api/health)
+app.get(['/health', '/api/health'], async (req, res) => {
   try {
     await pool.query('SELECT 1');
     await redisClient.ping();
@@ -167,8 +168,8 @@ app.get('/metrics', async (req, res) => {
 
 // API Routes
 
-// Get all posts
-app.get('/api/posts', async (req, res) => {
+// Get all posts (handle both /api/posts and /posts)
+app.get(['/api/posts', '/posts'], async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const pageNum = Math.max(1, parseInt(page));
@@ -209,8 +210,8 @@ app.get('/api/posts', async (req, res) => {
   }
 });
 
-// Get single post
-app.get('/api/posts/:slug', async (req, res) => {
+// Get single post (handle both /api/posts/:slug and /posts/:slug)
+app.get(['/api/posts/:slug', '/posts/:slug'], async (req, res) => {
   try {
     const { slug } = req.params;
     
@@ -241,8 +242,8 @@ app.get('/api/posts/:slug', async (req, res) => {
   }
 });
 
-// Get post likes
-app.get('/api/posts/:postId/likes', async (req, res) => {
+// Get post likes (handle both /api/posts/:postId/likes and /posts/:postId/likes)
+app.get(['/api/posts/:postId/likes', '/posts/:postId/likes'], async (req, res) => {
   try {
     const { postId } = req.params;
     
@@ -265,8 +266,8 @@ app.get('/api/posts/:postId/likes', async (req, res) => {
   }
 });
 
-// Like a post
-app.post('/api/posts/:postId/like', async (req, res) => {
+// Like a post (handle both /api/posts/:postId/like and /posts/:postId/like)
+app.post(['/api/posts/:postId/like', '/posts/:postId/like'], async (req, res) => {
   try {
     const { postId } = req.params;
     const { clientId, userIP } = req.body;
@@ -312,8 +313,8 @@ app.post('/api/posts/:postId/like', async (req, res) => {
   }
 });
 
-// Get post comments
-app.get('/api/posts/:postId/comments', async (req, res) => {
+// Get post comments (handle both /api/posts/:postId/comments and /posts/:postId/comments)
+app.get(['/api/posts/:postId/comments', '/posts/:postId/comments'], async (req, res) => {
   try {
     const { postId } = req.params;
     const { page = 1, limit = 10 } = req.query;
@@ -344,8 +345,8 @@ app.get('/api/posts/:postId/comments', async (req, res) => {
   }
 });
 
-// Add comment
-app.post('/api/posts/:postId/comments', async (req, res) => {
+// Add comment (handle both /api/posts/:postId/comments and /posts/:postId/comments)
+app.post(['/api/posts/:postId/comments', '/posts/:postId/comments'], async (req, res) => {
   try {
     const { postId } = req.params;
     const { content, displayName, clientId, userIP } = req.body;
@@ -385,7 +386,8 @@ app.post('/api/posts/:postId/comments', async (req, res) => {
 });
 
 // Get analytics data
-app.get('/api/analytics', async (req, res) => {
+// Analytics (handle both /api/analytics and /analytics)
+app.get(['/api/analytics', '/analytics'], async (req, res) => {
   try {
     const { period = '7d' } = req.query;
     

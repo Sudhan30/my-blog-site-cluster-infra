@@ -7,8 +7,6 @@ metadata:
     traefik.ingress.kubernetes.io/router.tls.certresolver: le
     # Add CORS headers for API routes
     traefik.ingress.kubernetes.io/custom-request-headers: "X-Forwarded-Proto:https"
-    # Strip /api prefix when forwarding to backend
-    traefik.ingress.kubernetes.io/router.middlewares: web-api-stripprefix@kubernetescrd
 spec:
   ingressClassName: traefik
   rules:

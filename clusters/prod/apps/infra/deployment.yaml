@@ -1,0 +1,117 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog-infra
+  namespace: web
+  labels:
+    app: blog-infra
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: blog-infra
+  template:
+    metadata:
+      labels:
+        app: blog-infra
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-creds
+      containers:
+      - name: blog-infra
+        image: docker.io/sudhan03/blog-site-infra:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+          name: http
+          protocol: TCP
+        - containerPort: 3001
+          name: api
+          protocol: TCP
+        - containerPort: 5432
+          name: postgres
+          protocol: TCP
+        - containerPort: 6379
+          name: redis
+          protocol: TCP
+        - containerPort: 9090
+          name: prometheus
+          protocol: TCP
+        - containerPort: 3000
+          name: grafana
+          protocol: TCP
+        - containerPort: 9114
+          name: postgres-exporter
+          protocol: TCP
+        - containerPort: 9115
+          name: blackbox-exporter
+          protocol: TCP
+        env:
+        - name: POSTGRES_DB
+          value: "blog_db"
+        - name: POSTGRES_USER
+          value: "blog_user"
+        - name: POSTGRES_PASSWORD
+          value: "blog_password"
+        - name: REDIS_PASSWORD
+          value: ""
+        - name: GRAFANA_ADMIN_PASSWORD
+          value: "admin123"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: postgres-data
+          mountPath: /var/lib/postgresql/data
+        - name: redis-data
+          mountPath: /var/lib/redis
+        - name: prometheus-data
+          mountPath: /var/lib/prometheus
+        - name: grafana-data
+          mountPath: /var/lib/grafana
+        - name: nginx-logs
+          mountPath: /var/log/nginx
+        - name: supervisor-logs
+          mountPath: /var/log/supervisor
+      volumes:
+      - name: postgres-data
+        persistentVolumeClaim:
+          claimName: postgres-data
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-data
+      - name: prometheus-data
+        persistentVolumeClaim:
+          claimName: prometheus-data
+      - name: grafana-data
+        persistentVolumeClaim:
+          claimName: grafana-data
+      - name: nginx-logs
+        emptyDir: {}
+      - name: supervisor-logs
+        emptyDir: {}

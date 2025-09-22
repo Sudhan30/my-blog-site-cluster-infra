@@ -10,6 +10,7 @@ env:
   REGISTRY: docker.io
   IMAGE_NAME_BLOG: sudhan03/blog-site
   IMAGE_NAME_BACKEND: sudhan03/blog-site-backend
+  IMAGE_NAME_INFRA: sudhan03/blog-site-infra
 
 jobs:
   build-blog:
@@ -86,8 +87,45 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
+  build-infra:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Log in to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push infrastructure image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./infra
+        push: true
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_INFRA }}:main-${{ github.sha }}
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_INFRA }}:latest
+        labels: |
+          org.opencontainers.image.title=Blog Infrastructure
+          org.opencontainers.image.description=Blog infrastructure stack container
+          org.opencontainers.image.url=https://github.com/${{ github.repository }}
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.version=${{ github.sha }}
+          org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
   notify-flux:
-    needs: [build-blog, build-backend]
+    needs: [build-blog, build-backend, build-infra]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -97,9 +135,10 @@ jobs:
     steps:
     - name: Notify Flux of new images
       run: |
-        echo "New images built and pushed to GHCR:"
+        echo "New images built and pushed to Docker Hub:"
         echo "Blog: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}:main-${{ github.sha }}"
         echo "Backend: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:main-${{ github.sha }}"
+        echo "Infrastructure: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_INFRA }}:main-${{ github.sha }}"
         echo "Flux Image Automation will automatically update the manifests"
 
   verify-deployment:
@@ -113,12 +152,13 @@ jobs:
     steps:
     - name: Deployment verification info
       run: |
-        echo "✅ Images built and pushed successfully to GHCR"
+        echo "✅ Images built and pushed successfully to Docker Hub"
         echo "📦 Blog image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BLOG }}:main-${{ github.sha }}"
         echo "📦 Backend image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}:main-${{ github.sha }}"
+        echo "📦 Infrastructure image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_INFRA }}:main-${{ github.sha }}"
         echo ""
         echo "🔄 Flux Image Automation will now:"
-        echo "   1. Detect the new images in GHCR"
+        echo "   1. Detect the new images in Docker Hub"
         echo "   2. Update the Kubernetes manifests automatically"
         echo "   3. Commit the changes back to the repository"
         echo "   4. Trigger Flux CD to deploy the updates"
@@ -126,3 +166,5 @@ jobs:
         echo "⏱️  Expected timeline: 2-5 minutes for complete deployment"
         echo "🔍 Check your cluster with: kubectl get pods -n web"
         echo "🌐 Your blog will be available at: https://blog.sudharsana.dev"
+        echo "📊 Grafana dashboard: https://grafana.sudharsana.dev"
+        echo "📈 Prometheus metrics: https://prometheus.sudharsana.dev"

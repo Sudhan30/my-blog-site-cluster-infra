@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: blog-infra-service
+  namespace: web
+  labels:
+    app: blog-infra
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  - port: 3001
+    targetPort: 3001
+    protocol: TCP
+    name: api
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+  - port: 6379
+    targetPort: 6379
+    protocol: TCP
+    name: redis
+  - port: 9090
+    targetPort: 9090
+    protocol: TCP
+    name: prometheus
+  - port: 3000
+    targetPort: 3000
+    protocol: TCP
+    name: grafana
+  - port: 9114
+    targetPort: 9114
+    protocol: TCP
+    name: postgres-exporter
+  - port: 9115
+    targetPort: 9115
+    protocol: TCP
+    name: blackbox-exporter
+  selector:
+    app: blog-infra

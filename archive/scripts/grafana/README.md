@@ -9,7 +9,7 @@ This directory contains all the scripts used during the Grafana setup and troubl
 ### Final Grafana Credentials
 - **URL**: https://grafana.sudharsana.dev
 - **Username**: admin
-- **Password**: GrafanaAdmin2025!Secure
+- **Password**: Generated dynamically (see script output)
 
 ## Script History
 
@@ -48,6 +48,7 @@ If you need to recreate Grafana from scratch, use:
 This script will:
 - Remove any existing Grafana deployment
 - Create a fresh deployment with proper configuration
-- Set up secure credentials
+- Generate and set up secure credentials dynamically
 - Configure external access via ingress
 - Test the login functionality
+- Display the generated password for you to save securely

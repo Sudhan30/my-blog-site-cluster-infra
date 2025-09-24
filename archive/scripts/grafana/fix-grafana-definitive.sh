@@ -4,7 +4,7 @@ echo "🔧 DEFINITIVE Grafana Fix - No More Prompts!"
 echo "============================================="
 
 echo "📍 1. Generating final secure password..."
-FINAL_PASSWORD="GrafanaAdmin2025!Secure"
+FINAL_PASSWORD=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-25)
 echo "Final password: $FINAL_PASSWORD"
 
 echo ""

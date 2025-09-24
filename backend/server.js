@@ -258,7 +258,7 @@ app.get(['/api/posts/:postId/likes', '/posts/:postId/likes'], async (req, res) =
     const count = parseInt(result.rows[0].count);
     
     // Cache for 5 minutes
-    await redisClient.setEx(`likes:${postId}`, 300, count);
+    await redisClient.setEx(`likes:${postId}`, 300, count.toString());
     res.json({ postId, likes: count, cached: false });
   } catch (error) {
     logger.error('Error getting likes', error);
@@ -277,8 +277,18 @@ app.post(['/api/posts/:postId/like', '/posts/:postId/like'], async (req, res) =>
       return res.status(400).json({ error: 'Post ID is required' });
     }
     
-    // Generate client ID if not provided
-    const finalClientId = clientId || generateClientId();
+    // Generate client ID if not provided or validate provided one
+    let finalClientId;
+    if (clientId) {
+      // Validate UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(clientId)) {
+        return res.status(400).json({ error: 'Invalid clientId format. Must be a valid UUID.' });
+      }
+      finalClientId = clientId;
+    } else {
+      finalClientId = generateClientId();
+    }
     const ipHash = userIP ? hashIP(userIP) : null;
     
     // Check if already liked
@@ -303,7 +313,7 @@ app.post(['/api/posts/:postId/like', '/posts/:postId/like'], async (req, res) =>
     // Cache the like count
     const countResult = await pool.query('SELECT COUNT(*) as count FROM likes WHERE post_id = $1', [postId]);
     const count = parseInt(countResult.rows[0].count);
-    await redisClient.setEx(`likes:${postId}`, 300, count);
+    await redisClient.setEx(`likes:${postId}`, 300, count.toString());
     
     logger.info(`Post ${postId} liked by ${finalClientId || ipHash}`);
     res.json({ success: true, likes: count, clientId: finalClientId });

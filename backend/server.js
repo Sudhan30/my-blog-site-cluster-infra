@@ -253,12 +253,12 @@ app.get(['/api/posts/:postId/likes', '/posts/:postId/likes'], async (req, res) =
       return res.json({ postId, likes: parseInt(cached), cached: true });
     }
     
+    // Query using the string ID
     const result = await pool.query('SELECT COUNT(*) as count FROM likes WHERE post_id = $1', [postId]);
     const count = parseInt(result.rows[0].count);
     
     // Cache for 5 minutes
     await redisClient.setEx(`likes:${postId}`, 300, count);
-    
     res.json({ postId, likes: count, cached: false });
   } catch (error) {
     logger.error('Error getting likes', error);
@@ -281,7 +281,7 @@ app.post(['/api/posts/:postId/like', '/posts/:postId/like'], async (req, res) =>
     const finalClientId = clientId || generateClientId();
     const ipHash = userIP ? hashIP(userIP) : null;
     
-    // Check if already liked (by client_id or ip_hash)
+    // Check if already liked
     const existingLike = await pool.query(
       'SELECT id FROM likes WHERE post_id = $1 AND (client_id = $2 OR ip_hash = $3)',
       [postId, finalClientId, ipHash]

@@ -54,6 +54,13 @@ const commentsTotal = new client.Counter({
   registers: [register]
 });
 
+const unlikesTotal = new client.Counter({
+  name: 'blog_unlikes_total',
+  help: 'Total number of blog unlikes',
+  labelNames: ['post_id'],
+  registers: [register]
+});
+
 const responseTime = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
@@ -319,6 +326,66 @@ app.post(['/api/posts/:postId/like', '/posts/:postId/like'], async (req, res) =>
     res.json({ success: true, likes: count, clientId: finalClientId });
   } catch (error) {
     logger.error('Error liking post', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unlike a post (handle both /api/posts/:postId/unlike and /posts/:postId/unlike)
+app.delete(['/api/posts/:postId/unlike', '/posts/:postId/unlike'], async (req, res) => {
+  try {
+    const { postId } = req.params;
+    const { clientId, userIP } = req.body;
+    
+    // Validate input
+    if (!postId) {
+      return res.status(400).json({ error: 'Post ID is required' });
+    }
+    
+    // Validate clientId if provided
+    let finalClientId = null;
+    if (clientId) {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(clientId)) {
+        return res.status(400).json({ error: 'Invalid clientId format. Must be a valid UUID.' });
+      }
+      finalClientId = clientId;
+    }
+    
+    const ipHash = userIP ? hashIP(userIP) : null;
+    
+    // Find the like to remove
+    let deleteQuery, deleteParams;
+    if (finalClientId && ipHash) {
+      deleteQuery = 'DELETE FROM likes WHERE post_id = $1 AND (client_id = $2 OR ip_hash = $3) RETURNING id';
+      deleteParams = [postId, finalClientId, ipHash];
+    } else if (finalClientId) {
+      deleteQuery = 'DELETE FROM likes WHERE post_id = $1 AND client_id = $2 RETURNING id';
+      deleteParams = [postId, finalClientId];
+    } else if (ipHash) {
+      deleteQuery = 'DELETE FROM likes WHERE post_id = $1 AND ip_hash = $2 RETURNING id';
+      deleteParams = [postId, ipHash];
+    } else {
+      return res.status(400).json({ error: 'Either clientId or userIP is required to unlike a post' });
+    }
+    
+    const result = await pool.query(deleteQuery, deleteParams);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Like not found. Post may not have been liked by this user.' });
+    }
+    
+    // Update metrics
+    unlikesTotal.inc({ post_id: postId });
+    
+    // Cache the updated like count
+    const countResult = await pool.query('SELECT COUNT(*) as count FROM likes WHERE post_id = $1', [postId]);
+    const count = parseInt(countResult.rows[0].count);
+    await redisClient.setEx(`likes:${postId}`, 300, count.toString());
+    
+    logger.info(`Post ${postId} unliked by ${finalClientId || ipHash}`);
+    res.json({ success: true, likes: count, clientId: finalClientId, message: 'Post unliked successfully' });
+  } catch (error) {
+    logger.error('Error unliking post', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -19,7 +19,7 @@ spec:
         - name: dockerhub-creds
       containers:
       - name: blog-backend
-          image: docker.io/sudhan03/blog-site-backend:latest
+        image: docker.io/sudhan03/blog-site-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 3001

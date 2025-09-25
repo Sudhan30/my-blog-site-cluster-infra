@@ -1,20 +1,22 @@
-FROM node:18-alpine
+# Use specific node:18-alpine version to avoid tag resolution pulls
+FROM node:18.19-alpine
 
 # Set working directory
 WORKDIR /app
 
+# Create non-root user first (for better layer caching)
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --omit=dev
+# Install dependencies (as root, then change ownership)
+RUN npm install --omit=dev --frozen-lockfile && \
+    npm cache clean --force
 
 # Copy application code
 COPY . .
-
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
 
 # Change ownership of the app directory
 RUN chown -R nodejs:nodejs /app

@@ -25,13 +25,8 @@ jobs:
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      continue-on-error: true
-    
-    - name: Fallback Docker setup
-      if: failure()
-      run: |
-        docker version
-        docker info
+      with:
+        driver-opts: network=host
     
     - name: Log in to Docker Hub
       if: github.event_name != 'pull_request'
@@ -40,12 +35,13 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     
-    - name: Check Docker Hub rate limits
+    - name: Pre-pull base images (minimize pulls)
       if: github.event_name != 'pull_request'
       run: |
-        echo "Checking Docker Hub connectivity..."
-        docker info
-        echo "Rate limit status checked"
+        echo "Pre-pulling specific base images to reduce build-time pulls..."
+        docker pull nginx:1.25-alpine || echo "nginx:1.25-alpine pull failed, will pull during build"
+        docker pull node:18.19-alpine || echo "node:18.19-alpine pull failed, will pull during build"
+        docker pull alpine:3.19 || echo "alpine:3.19 pull failed, will pull during build"
     
     - name: Build and push blog image
       uses: docker/build-push-action@v5
@@ -65,6 +61,8 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
 
   build-backend:
     runs-on: ubuntu-latest
@@ -79,13 +77,8 @@ jobs:
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      continue-on-error: true
-    
-    - name: Fallback Docker setup
-      if: failure()
-      run: |
-        docker version
-        docker info
+      with:
+        driver-opts: network=host
     
     - name: Log in to Docker Hub
       if: github.event_name != 'pull_request'
@@ -94,12 +87,13 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     
-    - name: Check Docker Hub rate limits
+    - name: Pre-pull base images (minimize pulls)
       if: github.event_name != 'pull_request'
       run: |
-        echo "Checking Docker Hub connectivity..."
-        docker info
-        echo "Rate limit status checked"
+        echo "Pre-pulling specific base images to reduce build-time pulls..."
+        docker pull nginx:1.25-alpine || echo "nginx:1.25-alpine pull failed, will pull during build"
+        docker pull node:18.19-alpine || echo "node:18.19-alpine pull failed, will pull during build"
+        docker pull alpine:3.19 || echo "alpine:3.19 pull failed, will pull during build"
     
     - name: Build and push backend image
       uses: docker/build-push-action@v5
@@ -119,6 +113,8 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
 
   build-infra:
     runs-on: ubuntu-latest
@@ -133,13 +129,8 @@ jobs:
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
-      continue-on-error: true
-    
-    - name: Fallback Docker setup
-      if: failure()
-      run: |
-        docker version
-        docker info
+      with:
+        driver-opts: network=host
     
     - name: Log in to Docker Hub
       if: github.event_name != 'pull_request'
@@ -148,12 +139,13 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     
-    - name: Check Docker Hub rate limits
+    - name: Pre-pull base images (minimize pulls)
       if: github.event_name != 'pull_request'
       run: |
-        echo "Checking Docker Hub connectivity..."
-        docker info
-        echo "Rate limit status checked"
+        echo "Pre-pulling specific base images to reduce build-time pulls..."
+        docker pull nginx:1.25-alpine || echo "nginx:1.25-alpine pull failed, will pull during build"
+        docker pull node:18.19-alpine || echo "node:18.19-alpine pull failed, will pull during build"
+        docker pull alpine:3.19 || echo "alpine:3.19 pull failed, will pull during build"
     
     - name: Build and push infrastructure image
       uses: docker/build-push-action@v5
@@ -173,6 +165,8 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
         platforms: linux/amd64
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
 
   notify-flux:
     needs: [build-blog, build-backend, build-infra]

@@ -1,7 +1,8 @@
 # Multi-stage build for blog-site-infra
-FROM alpine:latest AS base
+# Use specific alpine version to avoid tag resolution pulls
+FROM alpine:3.19 AS base
 
-# Install common tools
+# Install common tools in single RUN to reduce layers
 RUN apk add --no-cache \
     curl \
     wget \
@@ -9,7 +10,8 @@ RUN apk add --no-cache \
     supervisor \
     tzdata \
     postgresql \
-    redis
+    redis && \
+    rm -rf /var/cache/apk/*
 
 # Create necessary users (skip if already exist)
 RUN adduser -D -s /bin/sh prometheus 2>/dev/null || true && \

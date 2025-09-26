@@ -74,6 +74,19 @@ const newsletterUnsubscriptions = new client.Counter({
   registers: [register]
 });
 
+const feedbackSubmissions = new client.Counter({
+  name: 'feedback_submissions_total',
+  help: 'Total number of feedback submissions',
+  labelNames: ['rating'],
+  registers: [register]
+});
+
+const feedbackRateLimitHits = new client.Counter({
+  name: 'feedback_rate_limit_hits_total',
+  help: 'Total number of feedback rate limit hits',
+  registers: [register]
+});
+
 const responseTime = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
@@ -719,6 +732,189 @@ app.get(['/api/newsletter/status', '/newsletter/status'], async (req, res) => {
     
   } catch (error) {
     logger.error('Error checking newsletter status', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Feedback submission endpoints
+
+// Generate random name for anonymous feedback
+function generateRandomName() {
+  const adjectives = ['Happy', 'Curious', 'Creative', 'Bright', 'Kind', 'Wise', 'Brave', 'Gentle', 'Smart', 'Cheerful'];
+  const nouns = ['Reader', 'Visitor', 'Explorer', 'Learner', 'Friend', 'Guest', 'Fan', 'Supporter', 'Enthusiast', 'Admirer'];
+  const adjective = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  return `${adjective} ${noun}`;
+}
+
+// Rate limiting for feedback (10 per minute per UUID)
+const feedbackRateLimit = new Map();
+
+function checkFeedbackRateLimit(uuid) {
+  const now = Date.now();
+  const minute = Math.floor(now / 60000); // Current minute
+  
+  if (!feedbackRateLimit.has(uuid)) {
+    feedbackRateLimit.set(uuid, { minute: minute, count: 0 });
+  }
+  
+  const userLimit = feedbackRateLimit.get(uuid);
+  
+  // Reset if it's a new minute
+  if (userLimit.minute !== minute) {
+    userLimit.minute = minute;
+    userLimit.count = 0;
+  }
+  
+  // Check if limit exceeded
+  if (userLimit.count >= 10) {
+    return false;
+  }
+  
+  // Increment count
+  userLimit.count++;
+  return true;
+}
+
+// Submit feedback
+app.post(['/api/feedback', '/feedback'], async (req, res) => {
+  try {
+    const { uuid, name, email, rating, feedback_text } = req.body;
+    const userIP = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
+    
+    // Validate required fields
+    if (!uuid) {
+      return res.status(400).json({ error: 'UUID is required' });
+    }
+    
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating is required and must be between 1 and 5' });
+    }
+    
+    if (!feedback_text || feedback_text.trim().length === 0) {
+      return res.status(400).json({ error: 'Feedback text is required' });
+    }
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(uuid)) {
+      return res.status(400).json({ error: 'Invalid UUID format' });
+    }
+    
+    // Check rate limit
+    if (!checkFeedbackRateLimit(uuid)) {
+      feedbackRateLimitHits.inc();
+      logger.warn(`Feedback rate limit exceeded for UUID: ${uuid}`);
+      return res.status(429).json({ 
+        error: 'Rate limit exceeded. Maximum 10 feedback submissions per minute per user.',
+        retryAfter: 60 
+      });
+    }
+    
+    // Generate name if not provided
+    const finalName = name && name.trim() ? name.trim() : generateRandomName();
+    
+    // Validate email if provided
+    let finalEmail = null;
+    if (email && email.trim()) {
+      if (!isValidEmail(email)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+      finalEmail = email.toLowerCase().trim();
+    }
+    
+    // Insert feedback
+    const result = await pool.query(
+      'INSERT INTO feedback (uuid, name, email, rating, feedback_text, ip_address, user_agent) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, created_at',
+      [uuid, finalName, finalEmail, rating, feedback_text.trim(), userIP, userAgent]
+    );
+    
+    feedbackSubmissions.inc({ rating: rating.toString() });
+    logger.info(`Feedback submitted: UUID=${uuid}, Rating=${rating}, Name=${finalName}`);
+    
+    res.json({
+      success: true,
+      message: 'Feedback submitted successfully',
+      feedbackId: result.rows[0].id,
+      submittedAt: result.rows[0].created_at,
+      name: finalName
+    });
+    
+  } catch (error) {
+    logger.error('Error submitting feedback', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get feedback statistics (admin endpoint)
+app.get(['/api/feedback/stats', '/feedback/stats'], async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) as total_feedback,
+        AVG(rating) as average_rating,
+        COUNT(CASE WHEN rating = 5 THEN 1 END) as five_star,
+        COUNT(CASE WHEN rating = 4 THEN 1 END) as four_star,
+        COUNT(CASE WHEN rating = 3 THEN 1 END) as three_star,
+        COUNT(CASE WHEN rating = 2 THEN 1 END) as two_star,
+        COUNT(CASE WHEN rating = 1 THEN 1 END) as one_star,
+        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status = 'reviewed' THEN 1 END) as reviewed
+      FROM feedback
+    `);
+    
+    const stats = result.rows[0];
+    res.json({
+      totalFeedback: parseInt(stats.total_feedback),
+      averageRating: parseFloat(stats.average_rating).toFixed(2),
+      ratingDistribution: {
+        fiveStar: parseInt(stats.five_star),
+        fourStar: parseInt(stats.four_star),
+        threeStar: parseInt(stats.three_star),
+        twoStar: parseInt(stats.two_star),
+        oneStar: parseInt(stats.one_star)
+      },
+      statusDistribution: {
+        pending: parseInt(stats.pending),
+        reviewed: parseInt(stats.reviewed)
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error getting feedback stats', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get recent feedback (admin endpoint)
+app.get(['/api/feedback/recent', '/feedback/recent'], async (req, res) => {
+  try {
+    const { limit = 10, status = 'all' } = req.query;
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit)));
+    
+    let query = 'SELECT id, uuid, name, email, rating, feedback_text, created_at, status FROM feedback';
+    let params = [];
+    
+    if (status !== 'all') {
+      query += ' WHERE status = $1';
+      params.push(status);
+    }
+    
+    query += ' ORDER BY created_at DESC LIMIT $' + (params.length + 1);
+    params.push(limitNum);
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      feedback: result.rows,
+      count: result.rows.length,
+      limit: limitNum,
+      status: status
+    });
+    
+  } catch (error) {
+    logger.error('Error getting recent feedback', error);
     res.status(500).json({ error: error.message });
   }
 });

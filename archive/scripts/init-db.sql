@@ -18,11 +18,28 @@ CREATE TABLE IF NOT EXISTS comments (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS newsletter_subscriptions (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'unsubscribed', 'bounced')),
+    subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    unsubscribed_at TIMESTAMP NULL,
+    bounce_count INTEGER DEFAULT 0,
+    last_bounce_at TIMESTAMP NULL,
+    verification_token VARCHAR(255) NULL,
+    verified BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_likes_created_at ON likes(created_at);
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at);
+CREATE INDEX IF NOT EXISTS idx_newsletter_email ON newsletter_subscriptions(email);
+CREATE INDEX IF NOT EXISTS idx_newsletter_status ON newsletter_subscriptions(status);
+CREATE INDEX IF NOT EXISTS idx_newsletter_created_at ON newsletter_subscriptions(created_at);
 
 -- Insert some sample data
 INSERT INTO likes (post_id, user_id, user_ip) VALUES 
@@ -36,3 +53,10 @@ INSERT INTO comments (post_id, content, author_name, author_email) VALUES
 ('sample-post-1', 'Very informative', 'Jane Smith', 'jane@example.com'),
 ('sample-post-2', 'Thanks for sharing', 'Bob Johnson', 'bob@example.com')
 ON CONFLICT DO NOTHING;
+
+-- Insert sample newsletter subscriptions
+INSERT INTO newsletter_subscriptions (email, status, subscribed_at, verified) VALUES 
+('newsletter@example.com', 'active', NOW(), true),
+('subscriber@example.com', 'active', NOW(), false),
+('unsubscribed@example.com', 'unsubscribed', NOW() - INTERVAL '7 days', true)
+ON CONFLICT (email) DO NOTHING;

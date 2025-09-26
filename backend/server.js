@@ -61,6 +61,19 @@ const unlikesTotal = new client.Counter({
   registers: [register]
 });
 
+const newsletterSubscriptions = new client.Counter({
+  name: 'newsletter_subscriptions_total',
+  help: 'Total number of newsletter subscriptions',
+  labelNames: ['status'],
+  registers: [register]
+});
+
+const newsletterUnsubscriptions = new client.Counter({
+  name: 'newsletter_unsubscriptions_total',
+  help: 'Total number of newsletter unsubscriptions',
+  registers: [register]
+});
+
 const responseTime = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
@@ -515,6 +528,199 @@ app.get(['/api/analytics', '/analytics'], async (req, res) => {
 app.use((err, req, res, next) => {
   logger.error('Unhandled error', err);
   res.status(500).json({ error: 'Something went wrong!' });
+});
+
+// Newsletter subscription endpoints
+
+// Email validation function
+function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+// Subscribe to newsletter
+app.post(['/api/newsletter/subscribe', '/newsletter/subscribe'], async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Validate input
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    // Check if already subscribed
+    const existingSubscription = await pool.query(
+      'SELECT id, status, bounce_count FROM newsletter_subscriptions WHERE email = $1',
+      [normalizedEmail]
+    );
+    
+    if (existingSubscription.rows.length > 0) {
+      const subscription = existingSubscription.rows[0];
+      
+      // If already active, return success
+      if (subscription.status === 'active') {
+        return res.json({ 
+          success: true, 
+          message: 'Email is already subscribed to newsletter',
+          alreadySubscribed: true 
+        });
+      }
+      
+      // If unsubscribed, reactivate
+      if (subscription.status === 'unsubscribed') {
+        await pool.query(
+          'UPDATE newsletter_subscriptions SET status = $1, subscribed_at = NOW(), unsubscribed_at = NULL, updated_at = NOW() WHERE email = $2',
+          ['active', normalizedEmail]
+        );
+        
+        newsletterSubscriptions.inc({ status: 'reactivated' });
+        logger.info(`Newsletter subscription reactivated: ${normalizedEmail}`);
+        
+        return res.json({ 
+          success: true, 
+          message: 'Newsletter subscription reactivated successfully',
+          reactivated: true 
+        });
+      }
+      
+      // If bounced, don't allow subscription
+      if (subscription.status === 'bounced') {
+        return res.status(400).json({ 
+          error: 'This email address has been blocked due to previous bounces',
+          bounceCount: subscription.bounce_count 
+        });
+      }
+    }
+    
+    // Create new subscription
+    await pool.query(
+      'INSERT INTO newsletter_subscriptions (email, status, subscribed_at, verified) VALUES ($1, $2, NOW(), $3)',
+      [normalizedEmail, 'active', false]
+    );
+    
+    newsletterSubscriptions.inc({ status: 'new' });
+    logger.info(`New newsletter subscription: ${normalizedEmail}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Successfully subscribed to newsletter',
+      email: normalizedEmail 
+    });
+    
+  } catch (error) {
+    logger.error('Error subscribing to newsletter', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Unsubscribe from newsletter
+app.post(['/api/newsletter/unsubscribe', '/newsletter/unsubscribe'], async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    // Validate input
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    // Check if subscribed
+    const existingSubscription = await pool.query(
+      'SELECT id, status FROM newsletter_subscriptions WHERE email = $1',
+      [normalizedEmail]
+    );
+    
+    if (existingSubscription.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'Email not found in newsletter subscriptions',
+        notFound: true 
+      });
+    }
+    
+    const subscription = existingSubscription.rows[0];
+    
+    if (subscription.status === 'unsubscribed') {
+      return res.json({ 
+        success: true, 
+        message: 'Email is already unsubscribed',
+        alreadyUnsubscribed: true 
+      });
+    }
+    
+    // Unsubscribe
+    await pool.query(
+      'UPDATE newsletter_subscriptions SET status = $1, unsubscribed_at = NOW(), updated_at = NOW() WHERE email = $2',
+      ['unsubscribed', normalizedEmail]
+    );
+    
+    newsletterUnsubscriptions.inc();
+    logger.info(`Newsletter unsubscription: ${normalizedEmail}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'Successfully unsubscribed from newsletter',
+      email: normalizedEmail 
+    });
+    
+  } catch (error) {
+    logger.error('Error unsubscribing from newsletter', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get subscription status
+app.get(['/api/newsletter/status', '/newsletter/status'], async (req, res) => {
+  try {
+    const { email } = req.query;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email parameter is required' });
+    }
+    
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    const result = await pool.query(
+      'SELECT email, status, subscribed_at, unsubscribed_at, bounce_count, verified FROM newsletter_subscriptions WHERE email = $1',
+      [normalizedEmail]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.json({ 
+        subscribed: false, 
+        status: 'not_found',
+        message: 'Email not found in newsletter subscriptions' 
+      });
+    }
+    
+    const subscription = result.rows[0];
+    res.json({
+      subscribed: subscription.status === 'active',
+      status: subscription.status,
+      subscribedAt: subscription.subscribed_at,
+      unsubscribedAt: subscription.unsubscribed_at,
+      bounceCount: subscription.bounce_count,
+      verified: subscription.verified
+    });
+    
+  } catch (error) {
+    logger.error('Error checking newsletter status', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // 404 handler

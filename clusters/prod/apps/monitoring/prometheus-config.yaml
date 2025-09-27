@@ -73,27 +73,27 @@ data:
       # Blog backend metrics
       - job_name: 'blog-backend'
         static_configs:
-          - targets: ['blog-backend-service:3001']
-        metrics_path: '/metrics'
+          - targets: ['blog-backend-service.web.svc.cluster.local:3001']
+        metrics_path: '/api/metrics'
         scrape_interval: 10s
 
       # Blog frontend (nginx metrics)
       - job_name: 'blog-frontend'
         static_configs:
-          - targets: ['blog-service:80']
+          - targets: ['blog-service.web.svc.cluster.local:80']
         metrics_path: '/nginx_status'
         scrape_interval: 15s
 
       # PostgreSQL exporter
       - job_name: 'postgres-exporter'
         static_configs:
-          - targets: ['postgres-exporter-service:9187']
+          - targets: ['postgres-exporter-service.web.svc.cluster.local:9187']
         scrape_interval: 15s
 
       # Blackbox exporter
       - job_name: 'blackbox-exporter'
         static_configs:
-          - targets: ['blackbox-exporter-service:9115']
+          - targets: ['blackbox-exporter-service.web.svc.cluster.local:9115']
         scrape_interval: 15s
 
       # Blackbox HTTP checks
@@ -104,15 +104,15 @@ data:
         static_configs:
           - targets:
             - https://blog.sudharsana.dev
-            - http://blog-backend-service:3001/health
-            - http://prometheus-service:9090
+            - http://blog-backend-service.web.svc.cluster.local:3001/health
+            - http://prometheus-service.web.svc.cluster.local:9090
         relabel_configs:
           - source_labels: [__address__]
             target_label: __param_target
           - source_labels: [__param_target]
             target_label: instance
           - target_label: __address__
-            replacement: blackbox-exporter-service:9115
+            replacement: blackbox-exporter-service.web.svc.cluster.local:9115
 
       # Node exporter (if available)
       - job_name: 'node-exporter'

@@ -1,0 +1,474 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Blog Analytics - Comprehensive Dashboard",
+    "tags": ["blog", "analytics", "comprehensive"],
+    "style": "dark",
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Page Views",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(page_views_total)",
+            "legendFormat": "Total Views"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "short"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Active Sessions",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(user_sessions_total)",
+            "legendFormat": "Total Sessions"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 10
+                },
+                {
+                  "color": "red",
+                  "value": 50
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Bounce Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "bounce_rate",
+            "legendFormat": "Bounce Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.6
+                },
+                {
+                  "color": "red",
+                  "value": 0.8
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Avg Session Duration",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "average_session_duration_seconds",
+            "legendFormat": "Avg Duration"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "palette-classic"
+            },
+            "unit": "s"
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 0
+        }
+      },
+      {
+        "id": 5,
+        "title": "Page Views Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(page_views_total[5m])) by (page_url)",
+            "legendFormat": "{{page_url}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Views/sec",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 6,
+        "title": "Top Pages",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum(rate(page_views_total[1h])) by (page_url))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      },
+      {
+        "id": 7,
+        "title": "User Engagement Metrics",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(clicks_total[5m]))",
+            "legendFormat": "Clicks/sec"
+          },
+          {
+            "expr": "sum(rate(blog_comments_total[5m]))",
+            "legendFormat": "Comments/sec"
+          },
+          {
+            "expr": "sum(rate(feedback_submissions_total[5m]))",
+            "legendFormat": "Feedback/sec"
+          },
+          {
+            "expr": "sum(rate(blog_likes_total[5m]))",
+            "legendFormat": "Likes/sec"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Events/sec",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 16
+        }
+      },
+      {
+        "id": 8,
+        "title": "Device & Browser Breakdown",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum(page_views_total) by (device_type)",
+            "legendFormat": "{{device_type}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 16
+        }
+      },
+      {
+        "id": 9,
+        "title": "Browser Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum(user_sessions_total) by (browser)",
+            "legendFormat": "{{browser}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 16
+        }
+      },
+      {
+        "id": 10,
+        "title": "HTTP Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m])) by (status_code)",
+            "legendFormat": "Status {{status_code}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Requests/sec",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 24
+        }
+      },
+      {
+        "id": 11,
+        "title": "Response Time Distribution",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "50th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.75, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "75th percentile"
+          },
+          {
+            "expr": "histogram_quantile(0.90, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "90th percentile"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Time (seconds)",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 24
+        }
+      },
+      {
+        "id": 12,
+        "title": "Newsletter Subscriptions",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(newsletter_subscriptions_total[5m])) by (status)",
+            "legendFormat": "{{status}}"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Subscriptions/sec",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 32
+        }
+      },
+      {
+        "id": 13,
+        "title": "Feedback Ratings",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(feedback_submissions_total) by (rating)",
+            "legendFormat": "Rating {{rating}}"
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 12,
+          "y": 32
+        }
+      },
+      {
+        "id": 14,
+        "title": "Error Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{status_code=~\"5..\"}[5m]))",
+            "legendFormat": "5xx Errors/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "green",
+                  "value": null
+                },
+                {
+                  "color": "yellow",
+                  "value": 0.1
+                },
+                {
+                  "color": "red",
+                  "value": 1
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 18,
+          "y": 32
+        }
+      },
+      {
+        "id": 15,
+        "title": "Top Clicked Elements",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, sum(rate(clicks_total[1h])) by (element_type, element_id))",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 40
+        }
+      },
+      {
+        "id": 16,
+        "title": "Session Analytics",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(user_sessions_total[5m]))",
+            "legendFormat": "New Sessions/sec"
+          },
+          {
+            "expr": "bounce_rate",
+            "legendFormat": "Bounce Rate"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Rate",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 40
+        }
+      },
+      {
+        "id": 17,
+        "title": "System Health",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "active_connections",
+            "legendFormat": "Active Connections"
+          },
+          {
+            "expr": "sum(rate(http_requests_total{status_code=~\"2..\"}[5m]))",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "yAxes": [
+          {
+            "label": "Count",
+            "min": 0
+          }
+        ],
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 48
+        }
+      }
+    ],
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "refresh": "5s",
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "enable": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "type": "tags",
+          "tags": ["deployment"]
+        }
+      ]
+    }
+  }
+}

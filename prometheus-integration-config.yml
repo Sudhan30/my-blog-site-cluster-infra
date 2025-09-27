@@ -1,0 +1,76 @@
+# Prometheus Configuration for Blog Analytics Integration
+# Add these scraping jobs to your existing prometheus.yml
+
+scrape_configs:
+  # Your existing jobs...
+  
+  # Blog Backend API Metrics
+  - job_name: 'blog-backend-api'
+    static_configs:
+      - targets: ['blog-backend-service.web.svc.cluster.local:3001']
+    metrics_path: '/api/metrics'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+
+  # Blog Frontend Analytics (if you have a separate frontend metrics endpoint)
+  - job_name: 'blog-frontend-analytics'
+    static_configs:
+      - targets: ['blog.web.svc.cluster.local:80']
+    metrics_path: '/api/analytics/metrics'
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    honor_labels: true
+
+  # Kubernetes pods with prometheus.io annotations
+  - job_name: 'kubernetes-pods'
+    kubernetes_sd_configs:
+      - role: pod
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+        action: keep
+        regex: true
+      - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+        action: replace
+        target_label: __metrics_path__
+        regex: (.+)
+      - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+        action: replace
+        regex: ([^:]+)(?::\d+)?;(\d+)
+        replacement: $1:$2
+        target_label: __address__
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
+      - source_labels: [__meta_kubernetes_namespace]
+        action: replace
+        target_label: kubernetes_namespace
+      - source_labels: [__meta_kubernetes_pod_name]
+        action: replace
+        target_label: kubernetes_pod_name
+
+  # Blog specific metrics collection
+  - job_name: 'blog-metrics'
+    static_configs:
+      - targets: ['blog-backend-service.web.svc.cluster.local:3001']
+    metrics_path: '/api/metrics'
+    scrape_interval: 5s
+    metrics_relabel_configs:
+      # Add custom labels for better organization
+      - source_labels: [__name__]
+        regex: 'blog_.*'
+        target_label: 'metric_type'
+        replacement: 'blog_metric'
+      - source_labels: [__name__]
+        regex: 'http_.*'
+        target_label: 'metric_type'
+        replacement: 'http_metric'
+      - source_labels: [__name__]
+        regex: '.*_total$'
+        target_label: 'metric_kind'
+        replacement: 'counter'
+      - source_labels: [__name__]
+        regex: '.*_seconds$'
+        target_label: 'metric_kind'
+        replacement: 'histogram'

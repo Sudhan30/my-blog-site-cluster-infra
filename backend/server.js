@@ -87,6 +87,39 @@ const feedbackRateLimitHits = new client.Counter({
   registers: [register]
 });
 
+const pageViews = new client.Counter({
+  name: 'page_views_total',
+  help: 'Total number of page views',
+  labelNames: ['page_url', 'device_type'],
+  registers: [register]
+});
+
+const clicks = new client.Counter({
+  name: 'clicks_total',
+  help: 'Total number of clicks',
+  labelNames: ['element_type', 'element_id'],
+  registers: [register]
+});
+
+const userSessions = new client.Counter({
+  name: 'user_sessions_total',
+  help: 'Total number of user sessions',
+  labelNames: ['device_type', 'browser'],
+  registers: [register]
+});
+
+const bounceRate = new client.Gauge({
+  name: 'bounce_rate',
+  help: 'Bounce rate percentage',
+  registers: [register]
+});
+
+const averageSessionDuration = new client.Gauge({
+  name: 'average_session_duration_seconds',
+  help: 'Average session duration in seconds',
+  registers: [register]
+});
+
 const responseTime = new client.Histogram({
   name: 'http_request_duration_seconds',
   help: 'Duration of HTTP requests in seconds',
@@ -915,6 +948,237 @@ app.get(['/api/feedback/recent', '/feedback/recent'], async (req, res) => {
     
   } catch (error) {
     logger.error('Error getting recent feedback', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Analytics tracking endpoints
+
+// Track analytics event
+app.post(['/api/analytics/track', '/analytics/track'], async (req, res) => {
+  try {
+    const {
+      uuid,
+      session_id,
+      event_type,
+      event_name,
+      page_url,
+      page_title,
+      element_id,
+      element_class,
+      element_text,
+      element_type,
+      click_x,
+      click_y,
+      viewport_width,
+      viewport_height,
+      scroll_depth,
+      time_on_page,
+      metadata
+    } = req.body;
+    
+    const userIP = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
+    const referrer = req.get('Referer');
+    
+    // Validate required fields
+    if (!uuid || !session_id || !event_type) {
+      return res.status(400).json({ error: 'uuid, session_id, and event_type are required' });
+    }
+    
+    // Validate UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(uuid) || !uuidRegex.test(session_id)) {
+      return res.status(400).json({ error: 'Invalid UUID format' });
+    }
+    
+    // Insert analytics event
+    const result = await pool.query(`
+      INSERT INTO analytics_events (
+        uuid, session_id, event_type, event_name, page_url, page_title,
+        element_id, element_class, element_text, element_type,
+        click_x, click_y, viewport_width, viewport_height,
+        scroll_depth, time_on_page, referrer, user_agent, ip_address, metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      RETURNING id, created_at
+    `, [
+      uuid, session_id, event_type, event_name, page_url, page_title,
+      element_id, element_class, element_text, element_type,
+      click_x, click_y, viewport_width, viewport_height,
+      scroll_depth, time_on_page, referrer, userAgent, userIP,
+      metadata ? JSON.stringify(metadata) : null
+    ]);
+    
+    // Update Prometheus metrics
+    if (event_type === 'pageview') {
+      pageViews.inc({ page_url: page_url || 'unknown', device_type: 'unknown' });
+    } else if (event_type === 'click') {
+      clicks.inc({ element_type: element_type || 'unknown', element_id: element_id || 'unknown' });
+    }
+    
+    logger.info(`Analytics event tracked: ${event_type} for UUID ${uuid}`);
+    
+    res.json({
+      success: true,
+      eventId: result.rows[0].id,
+      timestamp: result.rows[0].created_at
+    });
+    
+  } catch (error) {
+    logger.error('Error tracking analytics event', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Start or update user session
+app.post(['/api/analytics/session', '/analytics/session'], async (req, res) => {
+  try {
+    const {
+      session_id,
+      uuid,
+      entry_page,
+      referrer,
+      device_type,
+      browser,
+      os,
+      country,
+      city
+    } = req.body;
+    
+    const userIP = req.ip || req.connection.remoteAddress;
+    const userAgent = req.get('User-Agent');
+    
+    if (!session_id || !uuid) {
+      return res.status(400).json({ error: 'session_id and uuid are required' });
+    }
+    
+    // Check if session exists
+    const existingSession = await pool.query(
+      'SELECT id FROM user_sessions WHERE session_id = $1',
+      [session_id]
+    );
+    
+    if (existingSession.rows.length === 0) {
+      // Create new session
+      await pool.query(`
+        INSERT INTO user_sessions (
+          session_id, uuid, entry_page, referrer, user_agent, ip_address,
+          device_type, browser, os, country, city
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      `, [session_id, uuid, entry_page, referrer, userAgent, userIP, device_type, browser, os, country, city]);
+      
+      userSessions.inc({ device_type: device_type || 'unknown', browser: browser || 'unknown' });
+      logger.info(`New session started: ${session_id} for UUID ${uuid}`);
+    } else {
+      // Update existing session
+      await pool.query(
+        'UPDATE user_sessions SET updated_at = NOW() WHERE session_id = $1',
+        [session_id]
+      );
+    }
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    logger.error('Error managing user session', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// End user session
+app.post(['/api/analytics/session/end', '/analytics/session/end'], async (req, res) => {
+  try {
+    const { session_id, exit_page, total_time, page_views, clicks, scroll_depth } = req.body;
+    
+    if (!session_id) {
+      return res.status(400).json({ error: 'session_id is required' });
+    }
+    
+    await pool.query(`
+      UPDATE user_sessions 
+      SET 
+        end_time = NOW(),
+        exit_page = $2,
+        total_time_on_site = $3,
+        page_views = $4,
+        total_clicks = $5,
+        total_scroll_depth = $6,
+        is_bounce = CASE WHEN $4 <= 1 AND $3 < 30 THEN true ELSE false END,
+        updated_at = NOW()
+      WHERE session_id = $1
+    `, [session_id, exit_page, total_time, page_views, clicks, scroll_depth]);
+    
+    logger.info(`Session ended: ${session_id}`);
+    res.json({ success: true });
+    
+  } catch (error) {
+    logger.error('Error ending user session', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get analytics dashboard data
+app.get(['/api/analytics/dashboard', '/analytics/dashboard'], async (req, res) => {
+  try {
+    const { days = 7 } = req.query;
+    const daysNum = Math.min(365, Math.max(1, parseInt(days)));
+    
+    // Get page views
+    const pageViewsResult = await pool.query(`
+      SELECT page_url, COUNT(*) as views
+      FROM analytics_events 
+      WHERE event_type = 'pageview' 
+        AND created_at >= NOW() - INTERVAL '${daysNum} days'
+      GROUP BY page_url
+      ORDER BY views DESC
+      LIMIT 10
+    `);
+    
+    // Get top clicked elements
+    const clicksResult = await pool.query(`
+      SELECT element_type, element_id, COUNT(*) as clicks
+      FROM analytics_events 
+      WHERE event_type = 'click' 
+        AND created_at >= NOW() - INTERVAL '${daysNum} days'
+      GROUP BY element_type, element_id
+      ORDER BY clicks DESC
+      LIMIT 10
+    `);
+    
+    // Get session statistics
+    const sessionStats = await pool.query(`
+      SELECT 
+        COUNT(*) as total_sessions,
+        AVG(total_time_on_site) as avg_session_duration,
+        COUNT(CASE WHEN is_bounce THEN 1 END) * 100.0 / COUNT(*) as bounce_rate,
+        COUNT(CASE WHEN device_type = 'mobile' THEN 1 END) as mobile_sessions,
+        COUNT(CASE WHEN device_type = 'desktop' THEN 1 END) as desktop_sessions
+      FROM user_sessions 
+      WHERE created_at >= NOW() - INTERVAL '${daysNum} days'
+    `);
+    
+    // Get hourly page views
+    const hourlyViews = await pool.query(`
+      SELECT 
+        EXTRACT(HOUR FROM created_at) as hour,
+        COUNT(*) as views
+      FROM analytics_events 
+      WHERE event_type = 'pageview' 
+        AND created_at >= NOW() - INTERVAL '${daysNum} days'
+      GROUP BY EXTRACT(HOUR FROM created_at)
+      ORDER BY hour
+    `);
+    
+    res.json({
+      period: `${daysNum} days`,
+      pageViews: pageViewsResult.rows,
+      topClicks: clicksResult.rows,
+      sessionStats: sessionStats.rows[0],
+      hourlyViews: hourlyViews.rows
+    });
+    
+  } catch (error) {
+    logger.error('Error getting analytics dashboard', error);
     res.status(500).json({ error: error.message });
   }
 });

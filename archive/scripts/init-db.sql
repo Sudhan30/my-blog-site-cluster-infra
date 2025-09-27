@@ -45,6 +45,56 @@ CREATE TABLE IF NOT EXISTS feedback (
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'archived'))
 );
 
+CREATE TABLE IF NOT EXISTS analytics_events (
+    id SERIAL PRIMARY KEY,
+    uuid VARCHAR(36) NOT NULL,
+    session_id VARCHAR(36) NOT NULL,
+    event_type VARCHAR(50) NOT NULL CHECK (event_type IN ('pageview', 'click', 'scroll', 'time_on_page', 'exit', 'custom')),
+    event_name VARCHAR(255),
+    page_url TEXT,
+    page_title VARCHAR(500),
+    element_id VARCHAR(255),
+    element_class VARCHAR(255),
+    element_text VARCHAR(500),
+    element_type VARCHAR(50),
+    click_x INTEGER,
+    click_y INTEGER,
+    viewport_width INTEGER,
+    viewport_height INTEGER,
+    scroll_depth INTEGER,
+    time_on_page INTEGER,
+    referrer TEXT,
+    user_agent TEXT,
+    ip_address INET,
+    metadata JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS user_sessions (
+    id SERIAL PRIMARY KEY,
+    session_id VARCHAR(36) NOT NULL UNIQUE,
+    uuid VARCHAR(36) NOT NULL,
+    start_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    end_time TIMESTAMP NULL,
+    page_views INTEGER DEFAULT 0,
+    total_clicks INTEGER DEFAULT 0,
+    total_scroll_depth INTEGER DEFAULT 0,
+    total_time_on_site INTEGER DEFAULT 0,
+    entry_page VARCHAR(500),
+    exit_page VARCHAR(500),
+    referrer TEXT,
+    user_agent TEXT,
+    ip_address INET,
+    device_type VARCHAR(50),
+    browser VARCHAR(100),
+    os VARCHAR(100),
+    country VARCHAR(100),
+    city VARCHAR(100),
+    is_bounce BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes(post_id);
 CREATE INDEX IF NOT EXISTS idx_likes_created_at ON likes(created_at);
@@ -58,6 +108,15 @@ CREATE INDEX IF NOT EXISTS idx_feedback_rating ON feedback(rating);
 CREATE INDEX IF NOT EXISTS idx_feedback_status ON feedback(status);
 CREATE INDEX IF NOT EXISTS idx_feedback_created_at ON feedback(created_at);
 CREATE INDEX IF NOT EXISTS idx_feedback_uuid_created ON feedback(uuid, created_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_uuid ON analytics_events(uuid);
+CREATE INDEX IF NOT EXISTS idx_analytics_session ON analytics_events(session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_event_type ON analytics_events(event_type);
+CREATE INDEX IF NOT EXISTS idx_analytics_created_at ON analytics_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_analytics_uuid_session ON analytics_events(uuid, session_id);
+CREATE INDEX IF NOT EXISTS idx_analytics_page_url ON analytics_events(page_url);
+CREATE INDEX IF NOT EXISTS idx_sessions_uuid ON user_sessions(uuid);
+CREATE INDEX IF NOT EXISTS idx_sessions_start_time ON user_sessions(start_time);
+CREATE INDEX IF NOT EXISTS idx_sessions_device ON user_sessions(device_type);
 
 -- Insert some sample data
 INSERT INTO likes (post_id, user_id, user_ip) VALUES 

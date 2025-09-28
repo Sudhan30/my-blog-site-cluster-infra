@@ -164,7 +164,15 @@ const generateClientId = () => {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: ['https://blog.sudharsana.dev', 'http://localhost:3000', 'http://localhost:4200'],
+  origin: [
+    'https://blog.sudharsana.dev', 
+    'http://localhost:3000', 
+    'http://localhost:4200',
+    'http://localhost:8080',
+    'http://localhost:5173',
+    'http://localhost:3001',
+    'https://sudharsana.dev'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']

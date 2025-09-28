@@ -16,3 +16,4 @@ resources:
   - blackbox-exporter-deployment.yaml
   - blackbox-exporter-service.yaml
   - blackbox-exporter-config.yaml
+  - ingress.yaml

@@ -5,14 +5,8 @@ metadata:
   namespace: web
   annotations:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
   ingressClassName: traefik
-  tls:
-  - hosts:
-    - grafana.sudharsana.dev
-    - prometheus.sudharsana.dev
-    secretName: monitoring-tls
   rules:
   - host: grafana.sudharsana.dev
     http:

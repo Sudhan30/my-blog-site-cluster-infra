@@ -13,8 +13,6 @@ spec:
   - hosts:
     - blog.sudharsana.dev
     - api.sudharsana.dev
-    - grafana.sudharsana.dev
-    - prometheus.sudharsana.dev
     secretName: blog-infra-tls
   rules:
   - host: blog.sudharsana.dev
@@ -37,23 +35,3 @@ spec:
             name: blog-infra-service
             port:
               number: 3001
-  - host: grafana.sudharsana.dev
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: blog-infra-service
-            port:
-              number: 3000
-  - host: prometheus.sudharsana.dev
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: blog-infra-service
-            port:
-              number: 9090

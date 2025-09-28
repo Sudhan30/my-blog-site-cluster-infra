@@ -22,7 +22,8 @@
     "prom-client": "^15.0.0",
     "dotenv": "^16.3.1",
     "joi": "^17.9.2",
-    "winston": "^3.10.0"
+    "winston": "^3.10.0",
+    "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

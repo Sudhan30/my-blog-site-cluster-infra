@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const client = require('prom-client');
 const winston = require('winston');
 const crypto = require('crypto');
+const fetch = require('node-fetch');
 
 // Configure logging
 const logger = winston.createLogger({
@@ -1187,6 +1188,88 @@ app.get(['/api/analytics/dashboard', '/analytics/dashboard'], async (req, res) =
     
   } catch (error) {
     logger.error('Error getting analytics dashboard', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Prometheus metrics endpoint - receive metrics from frontend and forward to Prometheus
+app.post(['/api/analytics/prometheus', '/analytics/prometheus'], async (req, res) => {
+  try {
+    const { metrics, job = 'blog-frontend', instance = 'default' } = req.body;
+    
+    if (!metrics || !Array.isArray(metrics)) {
+      return res.status(400).json({ error: 'Metrics array is required' });
+    }
+    
+    // Format metrics for Prometheus Pushgateway
+    const prometheusMetrics = metrics.map(metric => {
+      const { name, value, labels = {}, help = '' } = metric;
+      
+      // Build metric line for Prometheus format
+      let metricLine = `# HELP ${name} ${help}\n# TYPE ${name} ${metric.type || 'counter'}\n`;
+      
+      // Build labels string
+      const labelPairs = Object.entries({ instance, ...labels })
+        .map(([key, val]) => `${key}="${val}"`)
+        .join(',');
+      
+      // Add metric value
+      metricLine += `${name}{${labelPairs}} ${value}`;
+      
+      return metricLine;
+    }).join('\n');
+    
+    // Forward to Prometheus Pushgateway
+    const pushgatewayUrl = process.env.PROMETHEUS_PUSHGATEWAY_URL || 'http://prometheus-service:9091';
+    const targetUrl = `${pushgatewayUrl}/metrics/job/${job}/instance/${instance}`;
+    
+    try {
+      const response = await fetch(targetUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Encoding': 'identity'
+        },
+        body: prometheusMetrics
+      });
+      
+      if (!response.ok) {
+        logger.warn(`Prometheus push failed: ${response.status} ${response.statusText}`);
+        // Don't fail the request if Prometheus is down
+      } else {
+        logger.info(`Successfully pushed ${metrics.length} metrics to Prometheus`);
+      }
+    } catch (prometheusError) {
+      logger.error('Error pushing to Prometheus:', prometheusError);
+      // Don't fail the request if Prometheus is unreachable
+    }
+    
+    // Store metrics in database for backup
+    for (const metric of metrics) {
+      try {
+        await pool.query(`
+          INSERT INTO analytics_events (uuid, session_id, event_type, page_url, metadata, created_at)
+          VALUES ($1, $2, 'prometheus_metric', $3, $4, NOW())
+        `, [
+          metric.uuid || 'unknown',
+          metric.session_id || 'unknown',
+          metric.page_url || '/',
+          JSON.stringify(metric)
+        ]);
+      } catch (dbError) {
+        logger.error('Error storing metric in database:', dbError);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Processed ${metrics.length} metrics`,
+      prometheusStatus: 'forwarded',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    logger.error('Error processing Prometheus metrics', error);
     res.status(500).json({ error: error.message });
   }
 });

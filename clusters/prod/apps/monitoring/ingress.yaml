@@ -4,11 +4,10 @@ metadata:
   name: monitoring-ingress
   namespace: web
   annotations:
-    kubernetes.io/ingress.class: "traefik"
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    traefik.ingress.kubernetes.io/router.middlewares: web-auth@kubernetescrd
 spec:
+  ingressClassName: traefik
   tls:
   - hosts:
     - grafana.sudharsana.dev

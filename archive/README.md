@@ -1,64 +1,24 @@
-# 📁 Archive - Historical Files & Documentation
+# Archive Directory
 
-This folder contains archived files, scripts, and documentation that were used during development but are no longer needed in the main repository.
+This directory contains archived files, scripts, and documentation that are no longer actively used but kept for reference.
 
-## 📂 **Folder Structure**
+## Structure
 
-### **`scripts/`** - Development & Testing Scripts
-- `load-test-blog.sh` - Load testing with Apache Bench, wrk, siege
-- `k8s-load-test.sh` - Kubernetes-specific load testing
-- `simple-load-test.sh` - Basic curl-based load testing
-- `test-hpa-functionality.sh` - HPA testing and monitoring
-- `quick-hpa-test.sh` - Quick HPA status checks
-- `analyze-hpa-performance.sh` - HPA performance analysis
-- `test-backend-api.sh` - Backend API endpoint testing
-- `check-deployment-status.sh` - Deployment status verification
-- `quick-deployment-test.sh` - Quick deployment checks
-- `check-ci-cd-status.sh` - CI/CD pipeline status
-- `setup-backend-stack.sh` - Backend stack setup
-- `test-backend-routes.sh` - Backend route testing
-- `check-flux-deployment.sh` - Flux deployment status
-- `diagnose-api-404.sh` - API troubleshooting
-- `quick-status-check.sh` - Quick status checks
+### `/scripts/testing/`
+Contains testing and setup scripts:
+- `test-*.sh` - Various API and functionality test scripts
+- `setup-*.sh` - Setup and deployment scripts
+- `deploy-*.sh` - Deployment automation scripts
 
-### **`docs/`** - Documentation & Guides
-- `README.md` - Original comprehensive README
-- `BACKEND-STACK-README.md` - Backend stack documentation
-- `API-DOCUMENTATION.md` - Complete API documentation
-- `DATABASE-SCHEMA.md` - Database schema documentation
-- `DEPLOYMENT-TESTING-GUIDE.md` - Deployment testing procedures
-- `HPA-TESTING-GUIDE.md` - HPA testing guide
-- `GITHUB-SECRETS-SETUP.md` - GitHub secrets configuration
-- `IMAGE-NAMING-SUMMARY.md` - Docker image naming convention
-- `INFRA-README.md` - Infrastructure documentation
-- `FLUX-DEPLOYMENT-TROUBLESHOOTING.md` - Flux troubleshooting guide
-- `cloudflare-page-rules.md` - Cloudflare configuration guide
+### `/docs/analytics/`
+Contains analytics-related documentation and examples:
+- `analytics-example.html` - Frontend analytics integration example
+- `blog-analytics.js` - JavaScript analytics library
+- `ANALYTICS-INTEGRATION-GUIDE.md` - Complete analytics setup guide
+- `grafana-blog-analytics-dashboard.json` - Grafana dashboard configuration
+- `prometheus-integration-config.yml` - Prometheus configuration
+- `setup-grafana-access.md` - Grafana access setup guide
 
-### **`tests/`** - Test Files & Examples
-- `frontend-api-service.ts` - TypeScript API service class
-- `hpa-load-test-analysis.md` - HPA load test results
+## Usage
 
-### **`workflows/`** - Workflow Templates
-- `blog-repo-workflow.yml` - Blog repository workflow template
-
-### **`configs/`** - Configuration Examples
-- `nginx-reverse-proxy-config.conf` - Nginx reverse proxy example
-
-## 🎯 **Purpose**
-
-These files are archived to:
-- **Keep main repo clean** - Only essential files in root
-- **Preserve history** - Development process documentation
-- **Reference material** - Detailed guides and examples
-- **Troubleshooting** - Debug scripts and procedures
-
-## 🔍 **When to Use Archive**
-
-- **Development**: Scripts for testing and debugging
-- **Troubleshooting**: Diagnostic tools and guides
-- **Documentation**: Detailed technical documentation
-- **Examples**: Configuration templates and examples
-
-## 📝 **Note**
-
-These files are preserved for reference but are not actively maintained. For current documentation, see the main `README.md` file.
+These files are kept for reference and can be used as templates or examples for future development. They are not part of the active deployment pipeline.

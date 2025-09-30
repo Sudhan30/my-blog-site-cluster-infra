@@ -206,10 +206,70 @@ app.use((req, res, next) => {
   next();
 });
 
+// Helper function to check if IP is allowed
+const isAllowedIP = (ip, allowedIPs) => {
+  // Handle IPv6-mapped IPv4 addresses
+  if (ip.startsWith('::ffff:')) {
+    ip = ip.substring(7);
+  }
+  
+  // Check exact matches first
+  if (allowedIPs.includes(ip)) {
+    return true;
+  }
+  
+  // Check CIDR ranges
+  for (const allowedIP of allowedIPs) {
+    if (allowedIP.includes('/')) {
+      // Simple CIDR check for common private ranges
+      const [network, prefix] = allowedIP.split('/');
+      if (isIPInRange(ip, network, parseInt(prefix))) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+};
+
+// Simple CIDR range checker
+const isIPInRange = (ip, network, prefix) => {
+  const ipParts = ip.split('.').map(Number);
+  const networkParts = network.split('.').map(Number);
+  
+  if (ipParts.length !== 4 || networkParts.length !== 4) return false;
+  
+  const mask = (0xffffffff << (32 - prefix)) >>> 0;
+  const ipNum = (ipParts[0] << 24) + (ipParts[1] << 16) + (ipParts[2] << 8) + ipParts[3];
+  const networkNum = (networkParts[0] << 24) + (networkParts[1] << 16) + (networkParts[2] << 8) + networkParts[3];
+  
+  return (ipNum & mask) === (networkNum & mask);
+};
+
 // Health check endpoints
 // Health check (handle both /health and /api/health)
 app.get(['/health', '/api/health'], async (req, res) => {
   try {
+    // IP restriction for health endpoint
+    const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress;
+    const allowedIPs = [
+      '127.0.0.1',           // localhost
+      '::1',                 // IPv6 localhost
+      '10.0.0.0/8',          // Kubernetes internal
+      '172.16.0.0/12',       // Docker internal
+      '192.168.0.0/16',      // Private networks
+      '99.35.22.29'          // Your server IP
+    ];
+    
+    if (!isAllowedIP(clientIP, allowedIPs)) {
+      logger.warn(`Health check blocked from IP: ${clientIP}`);
+      return res.status(403).json({ 
+        status: 'forbidden', 
+        message: 'Access denied',
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     await pool.query('SELECT 1');
     await redisClient.ping();
     res.status(200).json({ 

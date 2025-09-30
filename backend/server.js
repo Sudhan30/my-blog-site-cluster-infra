@@ -550,29 +550,114 @@ app.get(['/api/posts/:postId/comments', '/posts/:postId/comments'], async (req, 
   }
 });
 
+// Comment rate limiting per IP
+const commentRateLimit = new Map();
+
+const checkCommentRateLimit = (ip) => {
+  const now = Date.now();
+  const windowMs = 60000; // 1 minute
+  const maxComments = 5; // Max 5 comments per minute
+  
+  if (!commentRateLimit.has(ip)) {
+    commentRateLimit.set(ip, []);
+  }
+  
+  const timestamps = commentRateLimit.get(ip);
+  const validTimestamps = timestamps.filter(time => now - time < windowMs);
+  
+  if (validTimestamps.length >= maxComments) {
+    throw new Error('Too many comments. Please wait before posting again.');
+  }
+  
+  validTimestamps.push(now);
+  commentRateLimit.set(ip, validTimestamps);
+};
+
+// Enhanced comment validation
+const validateComment = (content, displayName) => {
+  // 1. Required fields
+  if (!content || !displayName) {
+    throw new Error('Content and display name are required');
+  }
+  
+  // 2. Length validation
+  if (content.length < 10 || content.length > 2000) {
+    throw new Error('Comment must be between 10 and 2000 characters');
+  }
+  
+  if (displayName.length > 50) {
+    throw new Error('Display name must be less than 50 characters');
+  }
+  
+  // 3. HTML/Script filtering - remove potentially dangerous tags
+  const cleanContent = content
+    .replace(/<script[^>]*>.*?<\/script>/gi, '') // Remove script tags
+    .replace(/<[^>]*>/g, '') // Remove all HTML tags
+    .replace(/javascript:/gi, '') // Remove javascript: URLs
+    .replace(/on\w+\s*=/gi, ''); // Remove event handlers
+  
+  // 4. Basic spam detection (simple keyword filtering)
+  const spamKeywords = [
+    'buy now', 'click here', 'free money', 'make money fast',
+    'viagra', 'casino', 'loan', 'credit', 'debt consolidation',
+    'work from home', 'get rich', 'win money', 'lottery'
+  ];
+  
+  const lowerContent = cleanContent.toLowerCase();
+  const hasSpam = spamKeywords.some(keyword => lowerContent.includes(keyword));
+  
+  if (hasSpam) {
+    throw new Error('Comment contains inappropriate content');
+  }
+  
+  // 5. Check for excessive repetition
+  const words = cleanContent.split(/\s+/);
+  const wordCount = {};
+  words.forEach(word => {
+    wordCount[word.toLowerCase()] = (wordCount[word.toLowerCase()] || 0) + 1;
+  });
+  
+  const maxRepetition = Math.max(...Object.values(wordCount));
+  if (maxRepetition > words.length * 0.3) {
+    throw new Error('Comment contains excessive repetition');
+  }
+  
+  return cleanContent;
+};
+
 // Add comment (handle both /api/posts/:postId/comments and /posts/:postId/comments)
 app.post(['/api/posts/:postId/comments', '/posts/:postId/comments'], async (req, res) => {
   try {
     const { postId } = req.params;
     const { content, displayName, clientId, userIP } = req.body;
     
-    // Validate input
-    if (!content || !displayName) {
-      return res.status(400).json({ error: 'Content and display name are required' });
-    }
+    // Get client IP for rate limiting
+    const clientIP = req.ip || req.connection.remoteAddress || req.socket.remoteAddress || 'unknown';
     
-    if (content.length < 1 || content.length > 2000) {
-      return res.status(400).json({ error: 'Comment must be between 1 and 2000 characters' });
+    // Check rate limit
+    checkCommentRateLimit(clientIP);
+    
+    // Validate and clean input
+    const cleanContent = validateComment(content, displayName);
+    
+    // Check for duplicate comments (same content in last hour)
+    const duplicateCheck = await pool.query(
+      'SELECT id FROM comments WHERE content = $1 AND post_id = $2 AND created_at > NOW() - INTERVAL \'1 hour\'',
+      [cleanContent, postId]
+    );
+    
+    if (duplicateCheck.rows.length > 0) {
+      return res.status(400).json({ error: 'Duplicate comment detected. Please wait before posting similar content.' });
     }
     
     // Generate display name if not provided
     const finalDisplayName = displayName || 'Anonymous';
     const finalClientId = clientId || generateClientId();
-    const ipHash = userIP ? hashIP(userIP) : null;
+    const ipHash = userIP ? hashIP(userIP) : hashIP(clientIP);
     
     const result = await pool.query(
       'INSERT INTO comments (post_id, display_name, content, client_id, ip_hash, created_at) VALUES ($1, $2, $3, $4, $5, NOW()) RETURNING id, created_at',
-      [postId, finalDisplayName, content, finalClientId, ipHash]
+      [postId, finalDisplayName, cleanContent, finalClientId, ipHash]
     );
     
     // Update metrics
@@ -586,6 +671,17 @@ app.post(['/api/posts/:postId/comments', '/posts/:postId/comments'], async (req,
     });
   } catch (error) {
     logger.error('Error adding comment', error);
+    
+    // Handle validation errors with 400 status
+    if (error.message.includes('Comment must be') || 
+        error.message.includes('Display name must be') ||
+        error.message.includes('inappropriate content') ||
+        error.message.includes('excessive repetition') ||
+        error.message.includes('Too many comments') ||
+        error.message.includes('Duplicate comment')) {
+      return res.status(400).json({ error: error.message });
+    }
+    
     res.status(500).json({ error: error.message });
   }
 });

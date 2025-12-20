@@ -18,6 +18,12 @@ data:
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-XSS-Protection "1; mode=block" always;
         
+        # Allow ACME challenge for Let's Encrypt certificate validation
+        location ~ /.well-known/acme-challenge/ {
+            allow all;
+            default_type text/plain;
+        }
+        
         # Main location block
         location / {
             try_files $uri $uri/ /index.html;
@@ -37,8 +43,8 @@ data:
             add_header Content-Type text/plain;
         }
         
-        # Deny access to hidden files
-        location ~ /\. {
+        # Deny access to other hidden files (but not .well-known)
+        location ~ /\.(?!well-known) {
             deny all;
         }
     }

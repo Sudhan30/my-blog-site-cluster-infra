@@ -8,7 +8,8 @@ resources:
   - deployment.yaml
   - service.yaml
   - pvc.yaml
-  - ingress.yaml
+  # Disabled to prevent conflict with main blog ingress
+  # - ingress.yaml
 
 images:
   - name: docker.io/sudhan03/blog-site-infra

@@ -4,11 +4,15 @@ metadata:
   name: blog
   namespace: web
   annotations:
-    traefik.ingress.kubernetes.io/router.tls.certresolver: le
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
     # Add CORS headers for API routes
     traefik.ingress.kubernetes.io/custom-request-headers: "X-Forwarded-Proto:https"
 spec:
   ingressClassName: traefik
+  tls:
+    - hosts:
+        - blog.sudharsana.dev
+      secretName: blog-tls
   rules:
     - host: blog.sudharsana.dev
       http:
@@ -29,5 +33,3 @@ spec:
                 name: blog
                 port:
                   number: 80
-  tls:
-    - hosts: [ "blog.sudharsana.dev" ]

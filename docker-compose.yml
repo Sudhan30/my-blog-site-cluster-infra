@@ -1,5 +1,9 @@
 version: '3.8'
 
+# WARNING: This file contains DEV-ONLY credentials
+# DO NOT use these credentials in production
+# Production uses Kubernetes Secrets
+
 services:
   # PostgreSQL Database
   postgres:

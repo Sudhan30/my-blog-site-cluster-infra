@@ -22,7 +22,10 @@ spec:
         - containerPort: 9187
         env:
         - name: DATA_SOURCE_NAME
-          value: "postgresql://blog_user:blog_password@postgres-service:5432/blog_db?sslmode=disable"
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: database-url
         resources:
           requests:
             cpu: 50m

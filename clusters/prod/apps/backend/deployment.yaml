@@ -29,11 +29,17 @@ spec:
         - name: PORT
           value: "3001"
         - name: DATABASE_URL
-          value: "postgresql://blog_user:blog_password@postgres-service:5432/blog_db?sslmode=disable"
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: database-url
         - name: REDIS_URL
           value: "redis://redis-service:6379"
         - name: JWT_SECRET
-          value: "your-jwt-secret-key"
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: jwt-secret
         resources:
           requests:
             cpu: 100m

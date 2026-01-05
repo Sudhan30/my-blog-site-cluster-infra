@@ -133,11 +133,12 @@ data:
     
     -- Signals Table (Trading Signals Generated)
     CREATE TABLE IF NOT EXISTS signals (
-        id SERIAL PRIMARY KEY,
+        id SERIAL,
         time TIMESTAMPTZ DEFAULT NOW(),
-        symbol VARCHAR(10) NOT NULL,
-        strategy VARCHAR(50) NOT NULL,
-        signal VARCHAR(10) NOT NULL, -- 'buy', 'sell', 'hold'
+        PRIMARY KEY (id, time),
+        symbol TEXT NOT NULL,
+        strategy TEXT NOT NULL,
+        signal TEXT NOT NULL, -- 'buy', 'sell', 'hold'
         strength DECIMAL(5, 2), -- Signal strength 0-100
         price DECIMAL(10, 2),
         indicators JSONB, -- Store indicator values
@@ -165,8 +166,9 @@ data:
     
     -- System Events/Logs
     CREATE TABLE IF NOT EXISTS system_events (
-        id SERIAL PRIMARY KEY,
+        id SERIAL,
         time TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (id, time),
         event_type VARCHAR(50) NOT NULL, -- 'info', 'warning', 'error', 'alert'
         component VARCHAR(50) NOT NULL, -- 'data_ingestion', 'strategy_engine', etc.
         message TEXT NOT NULL,

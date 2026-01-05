@@ -62,7 +62,7 @@ data:
         current_price DECIMAL(10, 2),
         market_value DECIMAL(12, 2),
         unrealized_pnl DECIMAL(12, 2),
-        unrealized_pnl_pct DECIMAL(6, 2),
+        unrealized_pnl_pct DECIMAL(12, 2),
         strategy VARCHAR(50),
         opened_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -78,7 +78,7 @@ data:
         entry_price DECIMAL(10, 2) NOT NULL,
         exit_price DECIMAL(10, 2) NOT NULL,
         pnl DECIMAL(12, 2) NOT NULL,
-        pnl_pct DECIMAL(6, 2) NOT NULL,
+        pnl_pct DECIMAL(12, 2) NOT NULL,
         strategy VARCHAR(50) NOT NULL,
         entry_time TIMESTAMPTZ NOT NULL,
         exit_time TIMESTAMPTZ NOT NULL,
@@ -98,9 +98,9 @@ data:
         cash DECIMAL(12, 2) NOT NULL,
         positions_value DECIMAL(12, 2) NOT NULL,
         daily_pnl DECIMAL(12, 2),
-        daily_pnl_pct DECIMAL(6, 2),
+        daily_pnl_pct DECIMAL(12, 2),
         total_pnl DECIMAL(12, 2),
-        total_pnl_pct DECIMAL(6, 2),
+        total_pnl_pct DECIMAL(12, 2),
         num_positions INTEGER DEFAULT 0,
         num_trades_today INTEGER DEFAULT 0
     );

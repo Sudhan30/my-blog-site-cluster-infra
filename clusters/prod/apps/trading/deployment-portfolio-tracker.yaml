@@ -18,6 +18,8 @@ spec:
       labels:
         app: portfolio-tracker
     spec:
+      imagePullSecrets:
+      - name: docker-hub-creds
       containers:
       - name: portfolio-tracker
         image: docker.io/sudhan03/algo-trading:portfolio-tracker-9e1a906

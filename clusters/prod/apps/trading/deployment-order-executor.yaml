@@ -18,6 +18,8 @@ spec:
       labels:
         app: order-executor
     spec:
+      imagePullSecrets:
+      - name: docker-hub-creds
       containers:
       - name: order-executor
         image: docker.io/sudhan03/algo-trading:order-executor-9e1a906

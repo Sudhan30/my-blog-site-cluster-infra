@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: db-init-script
+  namespace: trading
+data:
+  init.sql: |
+    -- Initialize TimescaleDB and create tables for trading system
+    
+    -- Enable TimescaleDB extension
+    CREATE EXTENSION IF NOT EXISTS timescaledb;
+    
+    -- Market Data Table (OHLCV + Volume)
+    CREATE TABLE IF NOT EXISTS market_data (
+        time TIMESTAMPTZ NOT NULL,
+        symbol VARCHAR(10) NOT NULL,
+        open DECIMAL(10, 2),
+        high DECIMAL(10, 2),
+        low DECIMAL(10, 2),
+        close DECIMAL(10, 2),
+        volume BIGINT,
+        vwap DECIMAL(10, 2),
+        trade_count INTEGER,
+        timeframe VARCHAR(10) DEFAULT '1min'
+    );
+    
+    -- Convert to hypertable for time-series optimization
+    SELECT create_hypertable('market_data', 'time', if_not_exists => TRUE);
+    
+    -- Create index for fast symbol lookups
+    CREATE INDEX IF NOT EXISTS idx_market_data_symbol_time ON market_data (symbol, time DESC);
+    
+    -- Orders Table
+    CREATE TABLE IF NOT EXISTS orders (
+        id SERIAL PRIMARY KEY,
+        order_id VARCHAR(50) UNIQUE NOT NULL,
+        client_order_id VARCHAR(50),
+        symbol VARCHAR(10) NOT NULL,
+        side VARCHAR(10) NOT NULL, -- 'buy' or 'sell'
+        type VARCHAR(20) NOT NULL, -- 'market', 'limit', 'stop', etc.
+        quantity DECIMAL(10, 4) NOT NULL,
+        filled_quantity DECIMAL(10, 4) DEFAULT 0,
+        price DECIMAL(10, 2),
+        filled_avg_price DECIMAL(10, 2),
+        status VARCHAR(20) NOT NULL, -- 'pending', 'filled', 'cancelled', 'rejected'
+        strategy VARCHAR(50) NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        filled_at TIMESTAMPTZ
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_orders_symbol ON orders (symbol);
+    CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
+    CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders (created_at DESC);
+    
+    -- Positions Table (Current Holdings)
+    CREATE TABLE IF NOT EXISTS positions (
+        id SERIAL PRIMARY KEY,
+        symbol VARCHAR(10) UNIQUE NOT NULL,
+        quantity DECIMAL(10, 4) NOT NULL,
+        avg_entry_price DECIMAL(10, 2) NOT NULL,
+        current_price DECIMAL(10, 2),
+        market_value DECIMAL(12, 2),
+        unrealized_pnl DECIMAL(12, 2),
+        unrealized_pnl_pct DECIMAL(6, 2),
+        strategy VARCHAR(50),
+        opened_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_positions_symbol ON positions (symbol);
+    
+    -- Trades Table (Closed Positions History)
+    CREATE TABLE IF NOT EXISTS trades (
+        id SERIAL PRIMARY KEY,
+        symbol VARCHAR(10) NOT NULL,
+        quantity DECIMAL(10, 4) NOT NULL,
+        entry_price DECIMAL(10, 2) NOT NULL,
+        exit_price DECIMAL(10, 2) NOT NULL,
+        pnl DECIMAL(12, 2) NOT NULL,
+        pnl_pct DECIMAL(6, 2) NOT NULL,
+        strategy VARCHAR(50) NOT NULL,
+        entry_time TIMESTAMPTZ NOT NULL,
+        exit_time TIMESTAMPTZ NOT NULL,
+        hold_duration INTERVAL,
+        commission DECIMAL(8, 2) DEFAULT 0,
+        notes TEXT
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades (symbol);
+    CREATE INDEX IF NOT EXISTS idx_trades_exit_time ON trades (exit_time DESC);
+    CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades (strategy);
+    
+    -- Portfolio Snapshots (Daily)
+    CREATE TABLE IF NOT EXISTS portfolio_snapshots (
+        time TIMESTAMPTZ NOT NULL,
+        total_value DECIMAL(12, 2) NOT NULL,
+        cash DECIMAL(12, 2) NOT NULL,
+        positions_value DECIMAL(12, 2) NOT NULL,
+        daily_pnl DECIMAL(12, 2),
+        daily_pnl_pct DECIMAL(6, 2),
+        total_pnl DECIMAL(12, 2),
+        total_pnl_pct DECIMAL(6, 2),
+        num_positions INTEGER DEFAULT 0,
+        num_trades_today INTEGER DEFAULT 0
+    );
+    
+    SELECT create_hypertable('portfolio_snapshots', 'time', if_not_exists => TRUE);
+    
+    -- Strategy Performance Table
+    CREATE TABLE IF NOT EXISTS strategy_performance (
+        id SERIAL PRIMARY KEY,
+        strategy VARCHAR(50) NOT NULL,
+        period VARCHAR(20) NOT NULL, -- 'daily', 'weekly', 'monthly'
+        start_time TIMESTAMPTZ NOT NULL,
+        end_time TIMESTAMPTZ NOT NULL,
+        total_trades INTEGER DEFAULT 0,
+        winning_trades INTEGER DEFAULT 0,
+        losing_trades INTEGER DEFAULT 0,
+        win_rate DECIMAL(5, 2),
+        total_pnl DECIMAL(12, 2),
+        avg_win DECIMAL(10, 2),
+        avg_loss DECIMAL(10, 2),
+        max_win DECIMAL(10, 2),
+        max_loss DECIMAL(10, 2),
+        profit_factor DECIMAL(6, 2),
+        sharpe_ratio DECIMAL(6, 2),
+        max_drawdown DECIMAL(6, 2)
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_strategy_perf_strategy ON strategy_performance (strategy);
+    CREATE INDEX IF NOT EXISTS idx_strategy_perf_period ON strategy_performance (period, end_time DESC);
+    
+    -- Signals Table (Trading Signals Generated)
+    CREATE TABLE IF NOT EXISTS signals (
+        id SERIAL PRIMARY KEY,
+        time TIMESTAMPTZ DEFAULT NOW(),
+        symbol VARCHAR(10) NOT NULL,
+        strategy VARCHAR(50) NOT NULL,
+        signal VARCHAR(10) NOT NULL, -- 'buy', 'sell', 'hold'
+        strength DECIMAL(5, 2), -- Signal strength 0-100
+        price DECIMAL(10, 2),
+        indicators JSONB, -- Store indicator values
+        executed BOOLEAN DEFAULT FALSE,
+        execution_time TIMESTAMPTZ,
+        rejection_reason TEXT
+    );
+    
+    SELECT create_hypertable('signals', 'time', if_not_exists => TRUE);
+    CREATE INDEX IF NOT EXISTS idx_signals_symbol ON signals (symbol, time DESC);
+    CREATE INDEX IF NOT EXISTS idx_signals_strategy ON signals (strategy);
+    
+    -- Day Trade Tracker (for PDT rule compliance)
+    CREATE TABLE IF NOT EXISTS day_trades (
+        id SERIAL PRIMARY KEY,
+        trade_date DATE NOT NULL,
+        symbol VARCHAR(10) NOT NULL,
+        buy_time TIMESTAMPTZ NOT NULL,
+        sell_time TIMESTAMPTZ NOT NULL,
+        is_day_trade BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    
+    CREATE INDEX IF NOT EXISTS idx_day_trades_date ON day_trades (trade_date DESC);
+    
+    -- System Events/Logs
+    CREATE TABLE IF NOT EXISTS system_events (
+        id SERIAL PRIMARY KEY,
+        time TIMESTAMPTZ DEFAULT NOW(),
+        event_type VARCHAR(50) NOT NULL, -- 'info', 'warning', 'error', 'alert'
+        component VARCHAR(50) NOT NULL, -- 'data_ingestion', 'strategy_engine', etc.
+        message TEXT NOT NULL,
+        details JSONB
+    );
+    
+    SELECT create_hypertable('system_events', 'time', if_not_exists => TRUE);
+    CREATE INDEX IF NOT EXISTS idx_system_events_type ON system_events (event_type, time DESC);
+    
+    -- Stock Universe (Top 50 S&P 500)
+    CREATE TABLE IF NOT EXISTS stock_universe (
+        symbol VARCHAR(10) PRIMARY KEY,
+        company_name VARCHAR(200),
+        market_cap BIGINT,
+        sector VARCHAR(100),
+        industry VARCHAR(100),
+        last_updated TIMESTAMPTZ DEFAULT NOW(),
+        is_active BOOLEAN DEFAULT TRUE
+    );
+    
+    -- Continuous Aggregates for Performance
+    CREATE MATERIALIZED VIEW IF NOT EXISTS market_data_5min
+    WITH (timescaledb.continuous) AS
+    SELECT
+        time_bucket('5 minutes', time) AS bucket,
+        symbol,
+        FIRST(open, time) AS open,
+        MAX(high) AS high,
+        MIN(low) AS low,
+        LAST(close, time) AS close,
+        SUM(volume) AS volume
+    FROM market_data
+    WHERE timeframe = '1min'
+    GROUP BY bucket, symbol;
+    
+    CREATE MATERIALIZED VIEW IF NOT EXISTS market_data_15min
+    WITH (timescaledb.continuous) AS
+    SELECT
+        time_bucket('15 minutes', time) AS bucket,
+        symbol,
+        FIRST(open, time) AS open,
+        MAX(high) AS high,
+        MIN(low) AS low,
+        LAST(close, time) AS close,
+        SUM(volume) AS volume
+    FROM market_data
+    WHERE timeframe = '1min'
+    GROUP BY bucket, symbol;
+    
+    -- Add refresh policies for continuous aggregates
+    SELECT add_continuous_aggregate_policy('market_data_5min',
+        start_offset => INTERVAL '1 hour',
+        end_offset => INTERVAL '1 minute',
+        schedule_interval => INTERVAL '5 minutes',
+        if_not_exists => TRUE);
+    
+    SELECT add_continuous_aggregate_policy('market_data_15min',
+        start_offset => INTERVAL '3 hours',
+        end_offset => INTERVAL '5 minutes',
+        schedule_interval => INTERVAL '15 minutes',
+        if_not_exists => TRUE);
+    
+    -- Data retention policy (keep raw 1-min data for 30 days)
+    SELECT add_retention_policy('market_data', INTERVAL '30 days', if_not_exists => TRUE);
+    SELECT add_retention_policy('signals', INTERVAL '90 days', if_not_exists => TRUE);
+    SELECT add_retention_policy('system_events', INTERVAL '90 days', if_not_exists => TRUE);
+    
+    -- Grant permissions
+    GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO trading_user;
+    GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO trading_user;

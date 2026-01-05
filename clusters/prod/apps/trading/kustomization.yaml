@@ -3,6 +3,7 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - configmap.yaml
+  - db-init-configmap.yaml
   - pvc.yaml
   - deployment-timescaledb.yaml
   - deployment-redis.yaml

@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
       - name: portfolio-tracker
-        image: docker.io/sudhan03/algo-trading:portfolio-tracker-latest
+        image: docker.io/sudhan03/algo-trading:portfolio-tracker-9e1a906
         imagePullPolicy: IfNotPresent
         env:
         - name: ALPACA_API_KEY

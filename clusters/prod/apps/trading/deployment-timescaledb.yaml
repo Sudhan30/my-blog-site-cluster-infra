@@ -18,6 +18,7 @@ spec:
       labels:
         app: timescaledb
     spec:
+      terminationGracePeriodSeconds: 120
       containers:
       - name: timescaledb
         image: timescale/timescaledb:latest-pg15

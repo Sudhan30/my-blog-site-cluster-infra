@@ -22,7 +22,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: strategy-engine
-        image: docker.io/sudhan03/algo-trading:strategy-engine-0f9292a
+        image: docker.io/sudhan03/algo-trading:strategy-engine-48f476e
         imagePullPolicy: Always
         env:
         - name: DB_PASSWORD

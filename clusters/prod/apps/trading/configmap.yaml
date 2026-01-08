@@ -101,7 +101,7 @@ data:
         confirmation_bars: 3
       
       scalping:
-        enabled: true
+        enabled: false  # Disabled - conflicts with 30-min hold time
         rsi_oversold: 40
         rsi_overbought: 60
         profit_target_pct: 1.0

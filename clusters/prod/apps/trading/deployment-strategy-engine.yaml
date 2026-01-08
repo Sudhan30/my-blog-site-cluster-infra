@@ -35,6 +35,16 @@ spec:
             secretKeyRef:
               name: trading-secrets
               key: REDIS_PASSWORD
+        - name: ALPACA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: ALPACA_API_KEY
+        - name: ALPACA_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: ALPACA_SECRET_KEY
         volumeMounts:
         - name: config
           mountPath: /app/config

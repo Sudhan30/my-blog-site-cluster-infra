@@ -22,7 +22,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: data-ingestion
-        image: docker.io/sudhan03/algo-trading:data-ingestion-add4458
+        image: docker.io/sudhan03/algo-trading:data-ingestion-f3652e5
         imagePullPolicy: IfNotPresent
         env:
         - name: ALPACA_API_KEY

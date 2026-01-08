@@ -45,7 +45,7 @@ data:
     
     strategies:
       moving_average:
-        enabled: true
+        enabled: false
         short_period: 9
         long_period: 21
         timeframe_day_trade: "5min"
@@ -57,12 +57,12 @@ data:
         bollinger_period: 20
         bollinger_std: 2.0
         rsi_period: 14
-        rsi_oversold: 30
+        rsi_oversold: 25
         rsi_overbought: 70
         timeframe: "15min"
       
       momentum:
-        enabled: true
+        enabled: false
         roc_period: 12
         roc_threshold: 5.0
         rsi_period: 14
@@ -73,10 +73,10 @@ data:
         timeframe: "30min"
     
     position_management:
-      take_profit_pct: 3.0
-      stop_loss_pct: 1.5
+      take_profit_pct: 5.0
+      stop_loss_pct: 4.0
       trailing_stop: true
-      trailing_stop_pct: 1.0
+      trailing_stop_pct: 2.5
       partial_exit: false
     
     database:

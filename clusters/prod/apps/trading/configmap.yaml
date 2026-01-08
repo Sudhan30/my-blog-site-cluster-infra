@@ -99,6 +99,13 @@ data:
         fast_period: 50
         slow_period: 200
         confirmation_bars: 3
+      
+      scalping:
+        enabled: true
+        rsi_oversold: 40
+        rsi_overbought: 60
+        profit_target_pct: 1.0
+        volume_threshold: 1.0
     
     position_management:
       take_profit_pct: 5.0

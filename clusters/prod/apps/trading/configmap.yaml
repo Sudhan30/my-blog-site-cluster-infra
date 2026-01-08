@@ -93,6 +93,12 @@ data:
         rsi_period: 14
         rsi_entry: 30
         volume_threshold: 1.2
+      
+      golden_cross:
+        enabled: true
+        fast_period: 50
+        slow_period: 200
+        confirmation_bars: 3
     
     position_management:
       take_profit_pct: 5.0

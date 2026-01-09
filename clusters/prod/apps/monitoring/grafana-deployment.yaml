@@ -47,6 +47,8 @@ spec:
           mountPath: /etc/grafana/provisioning/datasources
         - name: grafana-dashboards
           mountPath: /etc/grafana/provisioning/dashboards
+        - name: grafana-dashboard-json
+          mountPath: /var/lib/grafana/dashboards
       volumes:
       - name: grafana-storage
         persistentVolumeClaim:
@@ -57,4 +59,15 @@ spec:
       - name: grafana-dashboards
         configMap:
           name: grafana-dashboards
+          items:
+            - key: dashboards.yaml
+              path: dashboards.yaml
+      - name: grafana-dashboard-json
+        configMap:
+          name: grafana-dashboards
+          items:
+            - key: blog-dashboard.json
+              path: blog-dashboard.json
+            - key: trading-dashboard.json
+              path: trading-dashboard.json
       restartPolicy: Always

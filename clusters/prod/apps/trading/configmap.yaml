@@ -62,7 +62,7 @@ data:
         timeframe: "15min"
       
       momentum:
-        enabled: false
+        enabled: true
         roc_period: 12
         roc_threshold: 5.0
         rsi_period: 14

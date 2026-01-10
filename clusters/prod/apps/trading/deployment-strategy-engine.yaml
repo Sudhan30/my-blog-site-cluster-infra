@@ -50,11 +50,11 @@ spec:
           mountPath: /app/config
         resources:
           requests:
-            memory: "1Gi"
-            cpu: "750m"
-          limits:
             memory: "2Gi"
-            cpu: "1500m"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
       volumes:
       - name: config
         configMap:

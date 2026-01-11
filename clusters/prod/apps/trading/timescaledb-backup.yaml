@@ -1,0 +1,88 @@
+---
+# TimescaleDB Daily Backup CronJob
+# Runs at 2 AM daily, stores backups on a separate PVC
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: timescale-backup-pvc
+  namespace: trading
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: local-path
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: timescaledb-backup
+  namespace: trading
+  labels:
+    app: timescaledb-backup
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  schedule: "0 2 * * *"  # 2 AM daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: backup
+            image: timescale/timescaledb:latest-pg15
+            env:
+            - name: PGHOST
+              value: timescaledb
+            - name: PGUSER
+              value: trading_user
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: DB_PASSWORD
+            - name: PGDATABASE
+              value: trading_db
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              BACKUP_FILE="/backups/trading_db_$(date +%Y%m%d_%H%M%S).sql.gz"
+              echo "Starting backup to $BACKUP_FILE..."
+              pg_dump -h $PGHOST -U $PGUSER $PGDATABASE | gzip > $BACKUP_FILE
+              echo "Backup completed: $(ls -lh $BACKUP_FILE)"
+              # Keep only last 7 days of backups
+              find /backups -name "*.sql.gz" -mtime +7 -delete
+              echo "Cleanup complete. Current backups:"
+              ls -lht /backups/
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backups
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "100m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: timescale-backup-pvc
+---
+# PodDisruptionBudget - prevent deletion during critical operations
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: timescaledb-pdb
+  namespace: trading
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: timescaledb

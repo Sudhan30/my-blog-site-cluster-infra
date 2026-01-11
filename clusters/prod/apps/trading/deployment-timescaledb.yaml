@@ -34,6 +34,15 @@ spec:
               key: DB_PASSWORD
         ports:
         - containerPort: 5432
+        # Graceful shutdown to prevent WAL corruption
+        lifecycle:
+          preStop:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                su-exec postgres pg_ctl stop -D /var/lib/postgresql/data -m fast -t 60
         volumeMounts:
         - name: timescale-data
           mountPath: /var/lib/postgresql/data

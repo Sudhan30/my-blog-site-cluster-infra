@@ -1,0 +1,63 @@
+---
+# Reconciliation Watchdog (Phase 7A)
+# Ensures internal state never diverges from Alpaca reality
+# Polls every 30 seconds, auto-repairs orphan state
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reconciliation
+  namespace: trading
+  labels:
+    app: reconciliation
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reconciliation
+  template:
+    metadata:
+      labels:
+        app: reconciliation
+    spec:
+      imagePullSecrets:
+      - name: docker-hub-creds
+      containers:
+      - name: reconciliation
+        image: docker.io/sudhan03/algo-trading:reconciliation-latest
+        imagePullPolicy: Always
+        env:
+        - name: ALPACA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: ALPACA_API_KEY
+        - name: ALPACA_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: ALPACA_SECRET_KEY
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: DB_PASSWORD
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: REDIS_PASSWORD
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "250m"
+      volumes:
+      - name: config
+        configMap:
+          name: trading-config

@@ -22,7 +22,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: order-executor
-        image: docker.io/sudhan03/algo-trading:order-executor-0ff3717
+        image: docker.io/sudhan03/algo-trading:order-executor-2afdd7f
         imagePullPolicy: Always
         env:
         - name: ALPACA_API_KEY

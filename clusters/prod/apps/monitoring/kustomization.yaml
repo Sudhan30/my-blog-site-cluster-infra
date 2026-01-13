@@ -1,19 +1,32 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  # Prometheus
   - prometheus-deployment.yaml
   - prometheus-service.yaml
   - prometheus-config.yaml
   - prometheus-pvc.yaml
+  # Grafana
   - grafana-secret.yaml
   - grafana-deployment.yaml
   - grafana-service.yaml
   - grafana-pvc.yaml
   - grafana-datasources.yaml
   - grafana-dashboards.yaml
+  # Loki (Log Aggregation)
+  - loki-config.yaml
+  - loki-deployment.yaml
+  - loki-service.yaml
+  # Promtail (Log Scraper)
+  - promtail-config.yaml
+  - promtail-daemonset.yaml
+  # Trading Logs Dashboard
+  - trading-logs-dashboard.yaml
+  # Exporters
   - postgres-exporter-deployment.yaml
   - postgres-exporter-service.yaml
   - blackbox-exporter-deployment.yaml
   - blackbox-exporter-service.yaml
   - blackbox-exporter-config.yaml
   - ingress.yaml
+

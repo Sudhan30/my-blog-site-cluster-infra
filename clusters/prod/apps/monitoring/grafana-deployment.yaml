@@ -72,4 +72,6 @@ spec:
               path: trading-dashboard.json
             - key: phase10a-pacing-dashboard.json
               path: phase10a-pacing-dashboard.json
+            - key: k8s-overview-dashboard.json
+              path: k8s-overview-dashboard.json
       restartPolicy: Always

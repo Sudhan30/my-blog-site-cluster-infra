@@ -182,149 +182,150 @@ data:
       "id": null,
       "uid": "trading-dashboard",
       "title": "Trading System Monitoring",
-        "tags": ["trading", "monitoring", "algo"],
-        "style": "dark",
-        "timezone": "browser",
-        "panels": [
-          {
-            "id": 1,
-            "title": "Trading Pods Status",
-            "type": "stat",
-            "targets": [
-              {
-                "expr": "kube_pod_status_ready{namespace=\"trading\", condition=\"true\"}",
-                "legendFormat": "{{pod}}"
-              }
-            ],
-            "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0}
-          },
-          {
-            "id": 2,
-            "title": "Pod CPU Usage",
-            "type": "timeseries",
-            "targets": [
-              {
-                "expr": "rate(container_cpu_usage_seconds_total{namespace=\"trading\", container!=\"\"}[5m]) * 100",
-                "legendFormat": "{{container}}"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "percent"
-              }
-            },
-            "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4}
-          },
-          {
-            "id": 3,
-            "title": "Pod Memory Usage",
-            "type": "timeseries",
-            "targets": [
-              {
-                "expr": "container_memory_usage_bytes{namespace=\"trading\", container!=\"\"} / 1024 / 1024",
-                "legendFormat": "{{container}}"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "decmbytes"
-              }
-            },
-            "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4}
-          },
-          {
-            "id": 4,
-            "title": "TimescaleDB Storage",
-            "type": "stat",
-            "targets": [
-              {
-                "expr": "kubelet_volume_stats_used_bytes{namespace=\"trading\", persistentvolumeclaim=~\".*timescale.*\"} / 1024 / 1024 / 1024",
-                "legendFormat": "Used GB"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "decgbytes",
-                "color": {
-                  "mode": "thresholds"
-                },
-                "thresholds": {
-                  "steps": [
-                    {"color": "green", "value": 0},
-                    {"color": "yellow", "value": 5},
-                    {"color": "red", "value": 8}
-                  ]
-                }
-              }
-            },
-            "gridPos": {"h": 6, "w": 6, "x": 0, "y": 12}
-          },
-          {
-            "id": 5,
-            "title": "Pod Restarts",
-            "type": "stat",
-            "targets": [
-              {
-                "expr": "kube_pod_container_status_restarts_total{namespace=\"trading\"}",
-                "legendFormat": "{{container}}"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "color": {
-                  "mode": "thresholds"
-                },
-                "thresholds": {
-                  "steps": [
-                    {"color": "green", "value": 0},
-                    {"color": "yellow", "value": 1},
-                    {"color": "red", "value": 3}
-                  ]
-                }
-              }
-            },
-            "gridPos": {"h": 6, "w": 6, "x": 6, "y": 12}
-          },
-          {
-            "id": 6,
-            "title": "Network I/O (Received)",
-            "type": "timeseries",
-            "targets": [
-              {
-                "expr": "rate(container_network_receive_bytes_total{namespace=\"trading\"}[5m])",
-                "legendFormat": "{{pod}}"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "Bps"
-              }
-            },
-            "gridPos": {"h": 6, "w": 6, "x": 12, "y": 12}
-          },
-          {
-            "id": 7,
-            "title": "Network I/O (Transmitted)",
-            "type": "timeseries",
-            "targets": [
-              {
-                "expr": "rate(container_network_transmit_bytes_total{namespace=\"trading\"}[5m])",
-                "legendFormat": "{{pod}}"
-              }
-            ],
-            "fieldConfig": {
-              "defaults": {
-                "unit": "Bps"
-              }
-            },
-            "gridPos": {"h": 6, "w": 6, "x": 18, "y": 12}
+      "tags": ["trading", "monitoring", "algo"],
+      "style": "dark",
+      "timezone": "browser",
+      "refresh": "30s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Trading Pods Status",
+          "type": "stat",
+          "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0},
+          "targets": [{
+            "expr": "kube_pod_status_ready{namespace=\"trading\", condition=\"true\"}",
+            "legendFormat": "{{pod}}"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "steps": [
+                  {"color": "red", "value": 0},
+                  {"color": "green", "value": 1}
+                ]
+              },
+              "mappings": [
+                {"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}
+              ]
+            }
           }
-        ],
-        "time": {
-          "from": "now-1h",
-          "to": "now"
         },
-      "refresh": "30s"
+        {
+          "id": 2,
+          "title": "CPU Usage (Limit: 2 Core)",
+          "type": "gauge",
+          "gridPos": {"h": 8, "w": 8, "x": 0, "y": 4},
+          "targets": [{
+            "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"trading\", container!=\"\"}[5m])) by (container)",
+            "legendFormat": "{{container}}"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "max": 2,
+              "unit": "short",
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": 0},
+                  {"color": "yellow", "value": 1.5},
+                  {"color": "red", "value": 1.8}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 3,
+          "title": "Memory Usage (Limit: 4GB)",
+          "type": "gauge",
+          "gridPos": {"h": 8, "w": 8, "x": 8, "y": 4},
+          "targets": [{
+            "expr": "sum(container_memory_usage_bytes{namespace=\"trading\", container!=\"\"}) by (container)",
+            "legendFormat": "{{container}}"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "max": 4294967296,
+              "unit": "bytes",
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": 0},
+                  {"color": "yellow", "value": 3221225472},
+                  {"color": "red", "value": 3865470566}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 5,
+          "title": "Restarts (Last 1h)",
+          "type": "stat",
+          "gridPos": {"h": 8, "w": 8, "x": 16, "y": 4},
+          "targets": [{
+            "expr": "increase(kube_pod_container_status_restarts_total{namespace=\"trading\"}[1h])",
+            "legendFormat": "{{container}}"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": 0},
+                  {"color": "yellow", "value": 1},
+                  {"color": "red", "value": 3}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 4,
+          "title": "TimescaleDB Volume Usage",
+          "type": "bargauge",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 12},
+          "targets": [{
+            "expr": "kubelet_volume_stats_used_bytes{namespace=\"trading\", persistentvolumeclaim=~\".*timescale.*\"} / kubelet_volume_stats_capacity_bytes{namespace=\"trading\", persistentvolumeclaim=~\".*timescale.*\"} * 100",
+            "legendFormat": "Usage %"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "min": 0,
+              "max": 100,
+              "unit": "percent",
+              "color": {"mode": "thresholds"},
+              "thresholds": {
+                "steps": [
+                  {"color": "green", "value": 0},
+                  {"color": "yellow", "value": 75},
+                  {"color": "red", "value": 90}
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "Network Traffic (In/Out)",
+          "type": "timeseries",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 12},
+          "targets": [
+            {"expr": "sum(rate(container_network_receive_bytes_total{namespace=\"trading\"}[5m]))", "legendFormat": "Inbound"},
+            {"expr": "-sum(rate(container_network_transmit_bytes_total{namespace=\"trading\"}[5m]))", "legendFormat": "Outbound"}
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {"fillOpacity": 10}
+            }
+          }
+        }
+      ],
+      "time": {"from": "now-1h", "to": "now"}
     }
   
   phase10a-pacing-dashboard.json: |

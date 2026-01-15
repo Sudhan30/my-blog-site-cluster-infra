@@ -454,7 +454,7 @@ data:
           "gridPos": { "x": 0, "y": 1, "w": 6, "h": 4 },
           "targets": [
             {
-              "expr": "kube_pod_status_phase{namespace=\"$namespace\", pod=\"$pod\"}",
+              "expr": "kube_pod_status_phase{namespace=~\"$namespace\", pod=~\"$pod\"}",
               "legendFormat": "{{pod}}",
               "refId": "A"
             }
@@ -478,7 +478,7 @@ data:
           "gridPos": { "x": 6, "y": 1, "w": 9, "h": 4 },
           "targets": [
             {
-              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", pod=\"$pod\"}[5m])) by (pod)",
+              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", pod=~\"$pod\"}[5m])) by (pod)",
               "legendFormat": "{{pod}}",
               "refId": "B"
             }
@@ -490,7 +490,7 @@ data:
           "gridPos": { "x": 0, "y": 5, "w": 9, "h": 4 },
           "targets": [
             {
-              "expr": "sum(container_memory_usage_bytes{namespace=\"$namespace\", pod=\"$pod\"}) by (pod)",
+              "expr": "sum(container_memory_usage_bytes{namespace=~\"$namespace\", pod=~\"$pod\"}) by (pod)",
               "legendFormat": "{{pod}}",
               "refId": "C"
             }
@@ -502,7 +502,7 @@ data:
           "gridPos": { "x": 9, "y": 5, "w": 6, "h": 4 },
           "targets": [
             {
-              "expr": "kube_pod_container_status_restarts_total{namespace=\"$namespace\", pod=\"$pod\"}",
+              "expr": "kube_pod_container_status_restarts_total{namespace=~\"$namespace\", pod=~\"$pod\"}",
               "legendFormat": "{{pod}}",
               "refId": "D"
             }
@@ -515,7 +515,7 @@ data:
           "datasource": "Loki",
           "targets": [
             {
-              "expr": "{namespace=\"$namespace\", pod=\"$pod\"} |= \"ERROR\"",
+              "expr": "{namespace=~\"$namespace\", pod=~\"$pod\"} |= \"ERROR\"",
               "refId": "E"
             }
           ],

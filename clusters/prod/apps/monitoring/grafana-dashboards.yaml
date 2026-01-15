@@ -414,14 +414,29 @@ data:
       "style": "dark",
       "tags": ["k8s", "monitoring", "overview"],
       "refresh": "30s",
+      "templating": {
+        "list": [
+          {
+            "name": "namespace",
+            "type": "query",
+            "label": "Namespace",
+            "datasource": "Prometheus",
+            "query": "label_values(kube_pod_info, namespace)",
+            "multi": true,
+            "includeAll": true,
+            "allValue": ".*",
+            "refresh": 2
+          }
+        ]
+      },
       "panels": [
         {
           "id": 1,
-          "title": "Cluster Health Score",
+          "title": "Health Score ($namespace)",
           "type": "gauge",
           "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
           "targets": [{
-            "expr": "sum(kube_pod_status_ready{condition=\"true\"}) / sum(kube_pod_info) * 100",
+            "expr": "sum(kube_pod_status_ready{condition=\"true\", namespace=~\"$namespace\"}) / sum(kube_pod_info{namespace=~\"$namespace\"}) * 100",
             "legendFormat": "Health %"
           }],
           "fieldConfig": {
@@ -444,7 +459,7 @@ data:
           "type": "stat",
           "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
           "targets": [{
-            "expr": "count(kube_pod_status_phase{phase!=\"Running\", phase!=\"Succeeded\"})",
+            "expr": "count(kube_pod_status_phase{phase!=\"Running\", phase!=\"Succeeded\", namespace=~\"$namespace\"}) or vector(0)",
             "legendFormat": "Pods"
           }],
           "fieldConfig": {
@@ -466,7 +481,7 @@ data:
           "type": "stat",
           "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
           "targets": [{
-            "expr": "count(increase(kube_pod_container_status_restarts_total[1h]) > 0)",
+            "expr": "count(increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}[1h]) > 0) or vector(0)",
             "legendFormat": "Pods"
           }],
           "fieldConfig": {
@@ -477,7 +492,8 @@ data:
                   { "value": 0, "color": "green" },
                   { "value": 1, "color": "red" }
                 ]
-              }
+              },
+              "mappings": [{ "type": "value", "options": { "0": { "text": "Stable", "color": "green" } } }]
             }
           }
         },
@@ -487,7 +503,7 @@ data:
           "type": "stat",
           "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
           "targets": [{
-            "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m]))",
+            "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\", namespace=~\"$namespace\"}[5m]))",
             "legendFormat": "Cores"
           }],
           "fieldConfig": { "defaults": { "unit": "short" } }
@@ -498,7 +514,7 @@ data:
           "type": "table",
           "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
           "targets": [{
-            "expr": "sum by (namespace, pod) (kube_pod_status_phase{phase!=\"Running\", phase!=\"Succeeded\"}) > 0",
+            "expr": "sum by (namespace, pod) (kube_pod_status_phase{phase!=\"Running\", phase!=\"Succeeded\", namespace=~\"$namespace\"}) > 0",
             "format": "table",
             "legendFormat": "Status"
           }],
@@ -515,7 +531,7 @@ data:
           "type": "bargauge",
           "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
           "targets": [{
-            "expr": "topk(5, sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m])) by (pod, namespace))",
+            "expr": "topk(5, sum(rate(container_cpu_usage_seconds_total{container!=\"\", namespace=~\"$namespace\"}[5m])) by (pod, namespace))",
             "legendFormat": "{{namespace}}/{{pod}}"
           }],
           "fieldConfig": {
@@ -528,7 +544,7 @@ data:
           "type": "bargauge",
           "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
           "targets": [{
-            "expr": "topk(5, sum(container_memory_usage_bytes{container!=\"\"}) by (pod, namespace))",
+            "expr": "topk(5, sum(container_memory_usage_bytes{container!=\"\", namespace=~\"$namespace\"}) by (pod, namespace))",
             "legendFormat": "{{namespace}}/{{pod}}"
           }],
           "fieldConfig": {
@@ -542,7 +558,7 @@ data:
           "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
           "datasource": "Loki",
           "targets": [{
-            "expr": "{namespace=~\".*\"} |= \"ERROR\"",
+            "expr": "{namespace=~\"$namespace\"} |~ \"(?i)error|fail|exception|fatal\"",
             "refId": "A"
           }]
         }

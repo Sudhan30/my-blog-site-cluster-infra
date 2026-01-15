@@ -408,124 +408,144 @@ data:
   k8s-overview-dashboard.json: |
     {
       "id": null,
-      "uid": "k8s-pod-overview-repeating",
-      "title": "Kubernetes Pod Overview (Dynamic Repeating Rows)",
+      "uid": "k8s-cluster-health-compact",
+      "title": "Cluster Health & Problems (Compact)",
       "timezone": "browser",
-      "schemaVersion": 36,
-      "version": 4,
+      "style": "dark",
+      "tags": ["k8s", "monitoring", "overview"],
       "refresh": "30s",
-      "templating": {
-        "list": [
-          {
-            "name": "namespace",
-            "type": "query",
-            "label": "Namespace",
-            "datasource": "Prometheus",
-            "query": "label_values(kube_pod_info, namespace)",
-            "multi": true,
-            "includeAll": true,
-            "allValue": ".*",
-            "refresh": 2
-          },
-          {
-            "name": "pod",
-            "type": "query",
-            "label": "Pod",
-            "datasource": "Prometheus",
-            "query": "label_values(kube_pod_info{namespace=\"$namespace\"}, pod)",
-            "multi": true,
-            "includeAll": true,
-            "allValue": ".*",
-            "refresh": 2
-          }
-        ]
-      },
       "panels": [
         {
-          "type": "row",
-          "title": "Namespace: $namespace",
-          "repeat": "namespace",
-          "collapsed": true,
-          "gridPos": { "x": 0, "y": 0, "w": 24, "h": 1 }
-        },
-        {
-          "type": "stat",
-          "title": "Pod Status",
-          "gridPos": { "x": 0, "y": 1, "w": 6, "h": 4 },
-          "targets": [
-            {
-              "expr": "kube_pod_status_phase{namespace=~\"$namespace\"}",
-              "legendFormat": "{{pod}}",
-              "refId": "A"
-            }
-          ],
+          "id": 1,
+          "title": "Cluster Health Score",
+          "type": "gauge",
+          "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+          "targets": [{
+            "expr": "sum(kube_pod_status_ready{condition=\"true\"}) / sum(kube_pod_info) * 100",
+            "legendFormat": "Health %"
+          }],
           "fieldConfig": {
             "defaults": {
+              "min": 0, "max": 100, "unit": "percent",
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
                   { "value": 0, "color": "red" },
-                  { "value": 1, "color": "yellow" },
-                  { "value": 2, "color": "green" }
+                  { "value": 90, "color": "yellow" },
+                  { "value": 99, "color": "green" }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "title": "Pods Not Running",
+          "type": "stat",
+          "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+          "targets": [{
+            "expr": "count(kube_pod_status_phase{phase!=\"Running\", phase!=\"Succeeded\"})",
+            "legendFormat": "Pods"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "steps": [
+                  { "value": 0, "color": "green" },
+                  { "value": 1, "color": "red" }
                 ]
               },
-              "mappings": [
-                 { "type": "value", "options": { "Running": { "color": "green", "text": "Running" }, "Pending": { "color": "yellow", "text": "Pending" }, "Failed": { "color": "red", "text": "Failed" } } }
-              ]
+              "mappings": [{ "type": "value", "options": { "0": { "text": "All Good", "color": "green" } } }]
             }
           }
         },
         {
-          "type": "timeseries",
-          "title": "CPU Usage",
-          "gridPos": { "x": 6, "y": 1, "w": 9, "h": 4 },
-          "targets": [
-            {
-              "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=~\"$namespace\", container!=\"POD\", container!=\"\"}[5m])) by (pod)",
-              "legendFormat": "{{pod}}",
-              "refId": "B"
+          "id": 3,
+          "title": "High Restarts (Last 1h)",
+          "type": "stat",
+          "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+          "targets": [{
+            "expr": "count(increase(kube_pod_container_status_restarts_total[1h]) > 0)",
+            "legendFormat": "Pods"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "color": { "mode": "thresholds" },
+              "thresholds": {
+                "steps": [
+                  { "value": 0, "color": "green" },
+                  { "value": 1, "color": "red" }
+                ]
+              }
             }
-          ]
+          }
         },
         {
-          "type": "timeseries",
-          "title": "Memory Usage",
-          "gridPos": { "x": 0, "y": 5, "w": 9, "h": 4 },
-          "targets": [
-            {
-              "expr": "sum(container_memory_usage_bytes{namespace=~\"$namespace\", container!=\"POD\", container!=\"\"}) by (pod)",
-              "legendFormat": "{{pod}}",
-              "refId": "C"
-            }
-          ]
+          "id": 4,
+          "title": "Total CPU Cores Used",
+          "type": "stat",
+          "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+          "targets": [{
+            "expr": "sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m]))",
+            "legendFormat": "Cores"
+          }],
+          "fieldConfig": { "defaults": { "unit": "short" } }
         },
         {
+          "id": 5,
+          "title": "⚠️ Unhealthy Pods List",
+          "type": "table",
+          "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+          "targets": [{
+            "expr": "sum by (namespace, pod) (kube_pod_status_phase{phase!=\"Running\", phase!=\"Succeeded\"}) > 0",
+            "format": "table",
+            "legendFormat": "Status"
+          }],
+          "fieldConfig": {
+            "defaults": {
+              "custom": { "displayMode": "color-background" },
+              "thresholds": { "mode": "absolute", "steps": [{ "value": 0, "color": "red" }] }
+            }
+          }
+        },
+        {
+          "id": 6,
+          "title": "Top CPU Consumers",
           "type": "bargauge",
-          "title": "Restart Count",
-          "gridPos": { "x": 9, "y": 5, "w": 6, "h": 4 },
-          "targets": [
-            {
-              "expr": "sum(kube_pod_container_status_restarts_total{namespace=~\"$namespace\"}) by (pod)",
-              "legendFormat": "{{pod}}",
-              "refId": "D"
-            }
-          ]
+          "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+          "targets": [{
+            "expr": "topk(5, sum(rate(container_cpu_usage_seconds_total{container!=\"\"}[5m])) by (pod, namespace))",
+            "legendFormat": "{{namespace}}/{{pod}}"
+          }],
+          "fieldConfig": {
+            "defaults": { "unit": "short" }
+          }
         },
         {
-          "type": "logs",
-          "title": "Error Logs",
-          "gridPos": { "x": 0, "y": 9, "w": 15, "h": 6 },
-          "datasource": "Loki",
-          "targets": [
-            {
-              "expr": "{namespace=~\"$namespace\"} |= \"ERROR\"",
-              "refId": "E"
-            }
-          ],
-          "options": {
-            "showLabels": true,
-            "wrapLogMessages": true
+          "id": 7,
+          "title": "Top Memory Consumers",
+          "type": "bargauge",
+          "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+          "targets": [{
+            "expr": "topk(5, sum(container_memory_usage_bytes{container!=\"\"}) by (pod, namespace))",
+            "legendFormat": "{{namespace}}/{{pod}}"
+          }],
+          "fieldConfig": {
+            "defaults": { "unit": "bytes" }
           }
+        },
+        {
+          "id": 8,
+          "title": "Cluster Error Logs (Live)",
+          "type": "logs",
+          "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+          "datasource": "Loki",
+          "targets": [{
+            "expr": "{namespace=~\".*\"} |= \"ERROR\"",
+            "refId": "A"
+          }]
         }
-      ]
+      ],
+      "time": { "from": "now-1h", "to": "now" }
     }

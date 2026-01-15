@@ -326,3 +326,80 @@ data:
         },
       "refresh": "30s"
     }
+  
+  phase10a-pacing-dashboard.json: |
+    {
+      "id": null,
+      "uid": "phase10a-pacing",
+      "title": "Phase 10A Trade Pacing & Risk",
+      "tags": ["trading", "phase10a", "pacing"],
+      "style": "dark",
+      "timezone": "browser",
+      "refresh": "30s",
+      "panels": [
+        {
+          "id": 1,
+          "type": "logs",
+          "title": "🚫 Entry Gate Events (SOFT/HARD Blocks)",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 0},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [{"expr": "{namespace=\"trading\"} |= \"ENTRY_BLOCKED\"", "refId": "A"}],
+          "options": {"showTime": true, "sortOrder": "Descending"}
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "📊 SOFT vs HARD Blocks (5m)",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 0},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {"expr": "count_over_time({namespace=\"trading\"} |= \"ENTRY_BLOCKED\" |= \"SOFT\" [5m])", "legendFormat": "⏸️ SOFT", "refId": "A"},
+            {"expr": "count_over_time({namespace=\"trading\"} |= \"ENTRY_BLOCKED\" |= \"HARD\" [5m])", "legendFormat": "🚫 HARD", "refId": "B"}
+          ],
+          "fieldConfig": {"defaults": {"custom": {"drawStyle": "bars", "fillOpacity": 50}}}
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "📈 Signal Flow: BUY → Order → Blocked",
+          "gridPos": {"h": 8, "w": 24, "x": 0, "y": 6},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {"expr": "count_over_time({namespace=\"trading\"} |= \"BUY signal\" [5m])", "legendFormat": "📈 BUY Signals", "refId": "A"},
+            {"expr": "count_over_time({namespace=\"trading\"} |= \"Order placed\" [5m])", "legendFormat": "✅ Orders", "refId": "B"},
+            {"expr": "count_over_time({namespace=\"trading\"} |= \"ENTRY_BLOCKED\" [5m])", "legendFormat": "🚫 Blocked", "refId": "C"}
+          ]
+        },
+        {
+          "id": 4,
+          "type": "logs",
+          "title": "🚫 Strategy Loss Cap Blocks",
+          "gridPos": {"h": 6, "w": 12, "x": 0, "y": 14},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [{"expr": "{namespace=\"trading\"} |= \"RISK BLOCK\"", "refId": "A"}],
+          "options": {"showTime": true, "sortOrder": "Descending"}
+        },
+        {
+          "id": 5,
+          "type": "logs",
+          "title": "⛔ FORBIDDEN Invariant Violations",
+          "gridPos": {"h": 6, "w": 12, "x": 12, "y": 14},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [{"expr": "{namespace=\"trading\"} |= \"FORBIDDEN\"", "refId": "A"}],
+          "options": {"showTime": true, "sortOrder": "Descending"}
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "🔴 Error Rate (5m)",
+          "gridPos": {"h": 6, "w": 24, "x": 0, "y": 20},
+          "datasource": {"type": "loki", "uid": "loki"},
+          "targets": [
+            {"expr": "count_over_time({namespace=\"trading\"} |= \"ERROR\" [5m])", "legendFormat": "🔴 Errors", "refId": "A"},
+            {"expr": "count_over_time({namespace=\"trading\"} |= \"CRITICAL\" [5m])", "legendFormat": "⛔ Critical", "refId": "B"}
+          ],
+          "fieldConfig": {"defaults": {"custom": {"drawStyle": "bars", "fillOpacity": 50}}}
+        }
+      ],
+      "time": {"from": "now-6h", "to": "now"}
+    }

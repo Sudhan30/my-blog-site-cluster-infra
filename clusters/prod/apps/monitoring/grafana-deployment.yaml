@@ -70,4 +70,6 @@ spec:
               path: blog-dashboard.json
             - key: trading-dashboard.json
               path: trading-dashboard.json
+            - key: phase10a-pacing-dashboard.json
+              path: phase10a-pacing-dashboard.json
       restartPolicy: Always

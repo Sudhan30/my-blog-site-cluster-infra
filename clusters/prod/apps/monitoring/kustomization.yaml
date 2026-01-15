@@ -22,6 +22,8 @@ resources:
   - promtail-daemonset.yaml
   # Trading Logs Dashboard
   - trading-logs-dashboard.yaml
+  # Phase 10A Pacing Dashboard
+  - phase10a-pacing-dashboard.yaml
   # Exporters
   - postgres-exporter-deployment.yaml
   - postgres-exporter-service.yaml

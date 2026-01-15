@@ -408,7 +408,7 @@ data:
   k8s-overview-dashboard.json: |
     {
       "id": null,
-      "uid": "k8s-cluster-health-compact",
+      "uid": "k8s-pod-overview-repeating",
       "title": "Cluster Health & Problems (Compact)",
       "timezone": "browser",
       "style": "dark",

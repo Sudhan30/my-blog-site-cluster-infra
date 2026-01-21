@@ -51,12 +51,12 @@ data:
                 "uid": "loki"
               },
               "editorMode": "code",
-              "expr": "{namespace=\"trading\"} |= \"ENTRY_BLOCKED\"",
+              "expr": "{namespace=\"trading\"} |~ \"ENTRY_BLOCKED|REJECTED|BLOCKED|SKIPPED\"",
               "queryType": "range",
               "refId": "A"
             }
           ],
-          "title": "🚫 Entry Gate Events (SOFT/HARD Blocks)",
+          "title": "🚫 Entry Gate Events (Blocked/Rejected)",
           "type": "logs"
         },
         {
@@ -143,8 +143,8 @@ data:
                 "uid": "loki"
               },
               "editorMode": "code",
-              "expr": "count_over_time({namespace=\"trading\"} |= \"ENTRY_BLOCKED\" |= \"SOFT\" [5m])",
-              "legendFormat": "⏸️ SOFT Skip",
+              "expr": "count_over_time({namespace=\"trading\"} |= \"ENTRY_BLOCKED\" [5m])",
+              "legendFormat": "🚫 ENTRY_BLOCKED",
               "queryType": "range",
               "refId": "A"
             },
@@ -154,13 +154,13 @@ data:
                 "uid": "loki"
               },
               "editorMode": "code",
-              "expr": "count_over_time({namespace=\"trading\"} |= \"ENTRY_BLOCKED\" |= \"HARD\" [5m])",
-              "legendFormat": "🚫 HARD Block",
+              "expr": "count_over_time({namespace=\"trading\"} |= \"REJECTED\" [5m])",
+              "legendFormat": "❌ REJECTED",
               "queryType": "range",
               "refId": "B"
             }
           ],
-          "title": "📊 SOFT vs HARD Blocks (5m buckets)",
+          "title": "📊 Entry Blocks vs Rejections (5m)",
           "type": "timeseries"
         },
         {
@@ -239,7 +239,7 @@ data:
                 "uid": "loki"
               },
               "editorMode": "code",
-              "expr": "count_over_time({namespace=\"trading\"} |= \"BUY signal\" [5m])",
+              "expr": "count_over_time({namespace=\"trading\"} |= \"Evaluating BUY signal\" [5m])",
               "legendFormat": "📈 BUY Signals",
               "queryType": "range",
               "refId": "A"
@@ -250,7 +250,7 @@ data:
                 "uid": "loki"
               },
               "editorMode": "code",
-              "expr": "count_over_time({namespace=\"trading\"} |= \"Order placed\" [5m])",
+              "expr": "count_over_time({namespace=\"trading\"} |= \"Order placed successfully\" [5m])",
               "legendFormat": "✅ Orders Placed",
               "queryType": "range",
               "refId": "B"
@@ -261,13 +261,13 @@ data:
                 "uid": "loki"
               },
               "editorMode": "code",
-              "expr": "count_over_time({namespace=\"trading\"} |= \"ENTRY_BLOCKED\" [5m])",
-              "legendFormat": "🚫 Blocked",
+              "expr": "count_over_time({namespace=\"trading\"} |~ \"REJECTED|BLOCKED|SKIPPED\" [5m])",
+              "legendFormat": "🚫 Blocked/Rejected",
               "queryType": "range",
               "refId": "C"
             }
           ],
-          "title": "📈 Signal Flow: BUY → Order → Blocked",
+          "title": "📈 Signal Flow: BUY Signal → Order → Blocked",
           "type": "timeseries"
         },
         {
@@ -303,12 +303,12 @@ data:
                 "uid": "loki"
               },
               "editorMode": "code",
-              "expr": "{namespace=\"trading\"} |= \"RISK BLOCK\"",
+              "expr": "{namespace=\"trading\"} |~ \"STOP LOSS|TRAILING STOP|HEAT_GUARD|auto_sl|trailing_stop\"",
               "queryType": "range",
               "refId": "A"
             }
           ],
-          "title": "🚫 Strategy Loss Cap Blocks",
+          "title": "🛑 Stop Loss & Exit Events",
           "type": "logs"
         },
         {
@@ -344,12 +344,12 @@ data:
                 "uid": "loki"
               },
               "editorMode": "code",
-              "expr": "{namespace=\"trading\"} |= \"FORBIDDEN\"",
+              "expr": "{namespace=\"trading\"} |= \"Trade Closed\"",
               "queryType": "range",
               "refId": "A"
             }
           ],
-          "title": "⛔ FORBIDDEN Invariant Violations",
+          "title": "💰 Trade Closed Events (P&L)",
           "type": "logs"
         },
         {
@@ -447,6 +447,88 @@ data:
           ],
           "title": "🔴 Error Rate (5m buckets)",
           "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 0,
+            "y": 26
+          },
+          "id": 7,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": false
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
+              "editorMode": "code",
+              "expr": "{namespace=\"trading\"} |~ \"EOD|LIQUIDATION|FORCE EXIT\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "⏰ EOD Liquidation Events",
+          "type": "logs"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 12,
+            "x": 12,
+            "y": 26
+          },
+          "id": 8,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": false
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "loki",
+                "uid": "loki"
+              },
+              "editorMode": "code",
+              "expr": "{namespace=\"trading\"} |~ \"TRADING HALTED|kill switch|SYMBOL LOCKED\"",
+              "queryType": "range",
+              "refId": "A"
+            }
+          ],
+          "title": "🛑 Kill Switch & Circuit Breaker",
+          "type": "logs"
         }
       ],
       "refresh": "30s",
@@ -462,8 +544,8 @@ data:
       },
       "timepicker": {},
       "timezone": "browser",
-      "title": "Phase 10A Trade Pacing & Risk Dashboard",
+      "title": "Phase 10A Trade Pacing & Risk",
       "uid": "phase10a-pacing",
-      "version": 1,
+      "version": 2,
       "weekStart": ""
     }

@@ -7,44 +7,19 @@ data:
   alerting.yaml: |
     apiVersion: 1
     
-    # Contact points - where to send alerts
-    # NOTE: The actual Slack webhook URL is configured via Grafana UI
-    # after deployment, using the secret stored in grafana-slack-webhook secret.
-    # This provisioning file sets up the structure, but the URL must be
-    # configured manually in Grafana due to secret management constraints.
-    contactPoints:
-      - orgId: 1
-        name: slack-pod-errors
-        receivers:
-          - uid: slack-pod-errors
-            type: slack
-            settings:
-              # URL will be configured via Grafana UI using secret
-              url: "${SLACK_ERROR_WEBHOOK}"
-              recipient: "#pod_errors"
-              title: "{{ .CommonLabels.alertname }}"
-              text: |
-                {{ range .Alerts }}
-                *Status:* {{ .Status }}
-                *Alert:* {{ .Labels.alertname }}
-                *Pod:* {{ .Labels.pod }}
-                *Namespace:* {{ .Labels.namespace }}
-                *Message:* {{ .Annotations.summary }}
-                {{ end }}
+    # NOTE: Contact points will be configured manually in Grafana UI
+    # Grafana's Slack integration via provisioning requires app tokens (not webhooks)
+    # The alert rules below will route to "grafana-default-email" until
+    # you configure a Slack contact point manually in the UI.
     
     # Notification policies - how alerts are routed
     policies:
       - orgId: 1
-        receiver: slack-pod-errors
+        receiver: grafana-default-email
         group_by: ['alertname', 'pod']
         group_wait: 30s
         group_interval: 5m
         repeat_interval: 4h
-        routes:
-          - receiver: slack-pod-errors
-            continue: true
-            matchers:
-              - namespace = trading
   
   alert-rules.yaml: |
     apiVersion: 1

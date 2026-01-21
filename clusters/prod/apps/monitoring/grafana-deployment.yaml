@@ -49,6 +49,8 @@ spec:
           mountPath: /etc/grafana/provisioning/dashboards
         - name: grafana-dashboard-json
           mountPath: /var/lib/grafana/dashboards
+        - name: grafana-alerting
+          mountPath: /etc/grafana/provisioning/alerting
       volumes:
       - name: grafana-storage
         persistentVolumeClaim:
@@ -74,4 +76,7 @@ spec:
               path: phase10a-pacing-dashboard.json
             - key: k8s-overview-dashboard.json
               path: k8s-overview-dashboard.json
+      - name: grafana-alerting
+        configMap:
+          name: grafana-alerting
       restartPolicy: Always

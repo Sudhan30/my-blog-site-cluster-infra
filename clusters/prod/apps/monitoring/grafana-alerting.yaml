@@ -1,0 +1,217 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alerting
+  namespace: web
+data:
+  alerting.yaml: |
+    apiVersion: 1
+    
+    # Contact points - where to send alerts
+    # NOTE: The actual Slack webhook URL is configured via Grafana UI
+    # after deployment, using the secret stored in grafana-slack-webhook secret.
+    # This provisioning file sets up the structure, but the URL must be
+    # configured manually in Grafana due to secret management constraints.
+    contactPoints:
+      - orgId: 1
+        name: slack-pod-errors
+        receivers:
+          - uid: slack-pod-errors
+            type: slack
+            settings:
+              # URL will be configured via Grafana UI using secret
+              url: "${SLACK_ERROR_WEBHOOK}"
+              recipient: "#pod_errors"
+              title: "{{ .CommonLabels.alertname }}"
+              text: |
+                {{ range .Alerts }}
+                *Status:* {{ .Status }}
+                *Alert:* {{ .Labels.alertname }}
+                *Pod:* {{ .Labels.pod }}
+                *Namespace:* {{ .Labels.namespace }}
+                *Message:* {{ .Annotations.summary }}
+                {{ end }}
+    
+    # Notification policies - how alerts are routed
+    policies:
+      - orgId: 1
+        receiver: slack-pod-errors
+        group_by: ['alertname', 'pod']
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        routes:
+          - receiver: slack-pod-errors
+            continue: true
+            matchers:
+              - namespace = trading
+  
+  alert-rules.yaml: |
+    apiVersion: 1
+    
+    groups:
+      - orgId: 1
+        name: Trading Pod Health
+        folder: Trading Alerts
+        interval: 1m
+        rules:
+          # Alert when any trading pod is not ready
+          - uid: trading-pod-not-ready
+            title: Trading Pod Not Ready
+            condition: A
+            data:
+              - refId: A
+                queryType: prometheus
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: |
+                    kube_pod_status_ready{namespace="trading", condition="true"} == 0
+                  intervalMs: 15000
+                  maxDataPoints: 43200
+            noDataState: NoData
+            execErrState: Error
+            for: 2m
+            annotations:
+              summary: "Pod {{ $labels.pod }} is not ready"
+              description: "The trading pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been in a not-ready state for more than 2 minutes."
+            labels:
+              severity: critical
+              namespace: trading
+          
+          # Alert on pod restarts
+          - uid: trading-pod-restarts
+            title: Trading Pod Restarting
+            condition: A
+            data:
+              - refId: A
+                queryType: prometheus
+                relativeTimeRange:
+                  from: 600
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: |
+                    increase(kube_pod_container_status_restarts_total{namespace="trading"}[10m]) > 0
+                  intervalMs: 15000
+                  maxDataPoints: 43200
+            noDataState: NoData
+            execErrState: Error
+            for: 0s
+            annotations:
+              summary: "Pod {{ $labels.pod }} is restarting"
+              description: "The container {{ $labels.container }} in pod {{ $labels.pod }} has restarted in the last 10 minutes."
+            labels:
+              severity: warning
+              namespace: trading
+          
+          # Alert on CrashLoopBackOff
+          - uid: trading-pod-crashloop
+            title: Trading Pod CrashLoopBackOff
+            condition: A
+            data:
+              - refId: A
+                queryType: prometheus
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: prometheus
+                model:
+                  expr: |
+                    kube_pod_container_status_waiting_reason{namespace="trading", reason="CrashLoopBackOff"} > 0
+                  intervalMs: 15000
+                  maxDataPoints: 43200
+            noDataState: NoData
+            execErrState: Error
+            for: 1m
+            annotations:
+              summary: "Pod {{ $labels.pod }} is in CrashLoopBackOff"
+              description: "The container {{ $labels.container }} in pod {{ $labels.pod }} is in CrashLoopBackOff state. Check pod logs for errors."
+            labels:
+              severity: critical
+              namespace: trading
+      
+      - orgId: 1
+        name: Trading Log Errors
+        folder: Trading Alerts
+        interval: 1m
+        rules:
+          # Alert on ERROR logs in any trading pod
+          - uid: trading-log-errors
+            title: Errors in Trading Pod Logs
+            condition: A
+            data:
+              - refId: A
+                queryType: loki
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: loki
+                model:
+                  expr: |
+                    sum(count_over_time({namespace="trading"} |= "ERROR" [5m])) > 5
+                  intervalMs: 60000
+                  maxDataPoints: 43200
+            noDataState: NoData
+            execErrState: Error
+            for: 0s
+            annotations:
+              summary: "High error rate in trading namespace"
+              description: "More than 5 ERROR log entries detected in the trading namespace in the last 5 minutes. Check Loki for details."
+            labels:
+              severity: warning
+              namespace: trading
+          
+          # Alert on CRITICAL logs
+          - uid: trading-critical-errors
+            title: Critical Error in Trading System
+            condition: A
+            data:
+              - refId: A
+                queryType: loki
+                relativeTimeRange:
+                  from: 300
+                  to: 0
+                datasourceUid: loki
+                model:
+                  expr: |
+                    sum(count_over_time({namespace="trading"} |= "CRITICAL" [5m])) > 0
+                  intervalMs: 60000
+                  maxDataPoints: 43200
+            noDataState: NoData
+            execErrState: Error
+            for: 0s
+            annotations:
+              summary: "CRITICAL error in trading system"
+              description: "A CRITICAL level log entry was detected in the trading namespace. Immediate attention required."
+            labels:
+              severity: critical
+              namespace: trading
+          
+          # Alert when data-ingestion has no data for 10 minutes
+          - uid: data-ingestion-stalled
+            title: Data Ingestion Stalled
+            condition: A
+            data:
+              - refId: A
+                queryType: loki
+                relativeTimeRange:
+                  from: 600
+                  to: 0
+                datasourceUid: loki
+                model:
+                  expr: |
+                    count_over_time({namespace="trading", app="data-ingestion"} |= "" [10m]) == 0
+                  intervalMs: 60000
+                  maxDataPoints: 43200
+            noDataState: Alerting
+            execErrState: Error
+            for: 0s
+            annotations:
+              summary: "Data ingestion service has stopped logging"
+              description: "No log entries from data-ingestion in the last 10 minutes. The service may be down or stuck."
+            labels:
+              severity: critical
+              namespace: trading

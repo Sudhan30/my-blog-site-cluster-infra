@@ -14,6 +14,7 @@ resources:
   - grafana-pvc.yaml
   - grafana-datasources.yaml
   - grafana-dashboards.yaml
+  - grafana-alerting.yaml
   # Loki (Log Aggregation)
   - loki-config.yaml
   - loki-deployment.yaml

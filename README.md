@@ -1,23 +1,28 @@
 # 🚀 My Blog Site - Kubernetes Infrastructure
 
-A complete Kubernetes infrastructure setup for a modern blog site with automated CI/CD, monitoring, and backend services.
+A complete Kubernetes infrastructure setup hosting two primary applications:
+1. **Modern Blog Site**: Angular frontend + Node.js backend
+2. **Algorithmic Trading System**: High-frequency trading platform with microservices architecture
 
 ## 🏗️ **Architecture**
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │   Backend API   │    │  Infrastructure │
-│   (Angular)     │    │   (Node.js)     │    │  (PostgreSQL,   │
-│                 │    │                 │    │   Redis, etc.)  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 │
-                    ┌─────────────────┐
-                    │  Kubernetes     │
-                    │  Cluster (k3s)  │
-                    │  + Flux CD      │
-                    └─────────────────┘
+┌─────────────────────────────────┐   ┌─────────────────────────────────┐
+│           Blog System           │   │         Trading System          │
+│                                 │   │                                 │
+│  ┌────────────┐ ┌────────────┐  │   │  ┌─────────────┐ ┌────────────┐ │
+│  │  Frontend  │ │  Backend   │  │   │  │ Strategy    │ │ Order      │ │
+│  │ (Angular)  │ │ (Node.js)  │  │   │  │ Engine      │ │ Executor   │ │
+│  └────────────┘ └────────────┘  │   │  └─────────────┘ └────────────┘ │
+│         │             │         │   │         │              │        │
+└─────────┼─────────────┼─────────┘   └─────────┼──────────────┼────────┘
+          │             │                       │              │
+          └─────────────┴───────────┬───────────┴──────────────┘
+                                    │
+                       ┌─────────────────────────┐
+                       │   Kubernetes Cluster    │
+                       │   (k3s + Flux CD)       │
+                       └─────────────────────────┘
 ```
 
 ## 📦 **Components**
@@ -37,9 +42,29 @@ A complete Kubernetes infrastructure setup for a modern blog site with automated
 - **Services**: PostgreSQL, Redis, Prometheus, Grafana
 - **Monitoring**: Postgres Exporter, Blackbox Exporter
 
+### **Trading System** (`trading`)
+- **Strategy Engine**: AI/ML based decision making (Python)
+- **Data Ingestion**: Real-time market data feed handler
+- **Order Executor**: Low-latency trade execution
+- **Portfolio Tracker**: PnL and position monitoring
+- **Data Integrity**: Gap detection and self-healing
+- **TimescaleDB**: Time-series data storage for market data
+
 ## 🚀 **Quick Start**
 
-### **1. Deploy to Kubernetes**
+### **1. Security Setup (Required)**
+Before deploying, you must generate secure credentials for the database and API.
+
+```bash
+# Run the secret generation script
+./create-secrets.sh
+```
+This will:
+1. Generate a strong Database Password and JWT Secret
+2. Create the `backend-secrets` Kubernetes Secret
+3. Provide instructions for updating the PostgreSQL user password
+
+### **2. Deploy to Kubernetes**
 ```bash
 # Clone the repository
 git clone https://github.com/Sudhan30/my-blog-site-cluster-infra.git
@@ -145,13 +170,14 @@ CREATE TABLE likes (
 ### **Namespaces**
 - `web` - Main application namespace
 - `flux-system` - Flux CD components
+- `trading` - High-frequency trading system
 
 ### **Key Resources**
-- **Deployments**: blog, blog-backend, infra
-- **Services**: blog, blog-backend-service, infra
+- **Deployments**: blog, blog-backend, infra, strategy-engine, order-executor
+- **Services**: blog, blog-backend-service, infra, timescaledb
 - **Ingress**: blog (with TLS)
 - **HPA**: blog (auto-scaling)
-- **PVC**: Data persistence
+- **PVC**: Data persistence (Postgres, TimescaleDB, Redis)
 
 ## 📁 **Repository Structure**
 
@@ -167,7 +193,8 @@ CREATE TABLE likes (
 ├── backend/                 # Backend source code
 ├── infra/                   # Infrastructure components
 ├── blog/                    # Frontend build files
-└── archive/                 # Archived files and docs
+├── archive/                 # Archived files and docs
+└── create-secrets.sh        # Security setup script
 ```
 
 ## 🔐 **Security Features**

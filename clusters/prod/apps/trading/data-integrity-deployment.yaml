@@ -5,6 +5,7 @@ metadata:
   namespace: trading
   labels:
     app: data-integrity
+    app.kubernetes.io/part-of: algo-trading-system
 spec:
   # CRITICAL: Single replica only - no horizontal scaling
   # This service coordinates state. Multiple replicas would cause race conditions.
@@ -21,8 +22,8 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: data-integrity
-        image: docker.io/sudhan03/algo-trading:data-integrity-latest
-        imagePullPolicy: IfNotPresent
+        image: docker.io/sudhan03/algo-trading:data-integrity-15398f2
+        imagePullPolicy: Always
         env:
         - name: ALPACA_API_KEY
           valueFrom:

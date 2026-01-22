@@ -31,6 +31,15 @@ data:
       premarket_enabled: false
       afterhours_enabled: false
     
+    # STOCK_ONLY Mode Configuration
+    # When enabled, disables all crypto trading and enforces US market hours
+    market_mode:
+      stock_only: true              # Disable crypto, NYSE/NASDAQ only
+      allowed_exchanges:
+        - NYSE
+        - NASDAQ
+      backfill_lookback_days: 15    # Trading days to look back for gap repair
+    
     risk_management:
       max_portfolio_risk_pct: 5.0
       max_position_size_pct: 50.0

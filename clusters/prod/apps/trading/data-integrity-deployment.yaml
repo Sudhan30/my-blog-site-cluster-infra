@@ -28,24 +28,26 @@ spec:
         - name: ALPACA_API_KEY
           valueFrom:
             secretKeyRef:
-              name: alpaca-credentials
-              key: api-key
-        - name: ALPACA_API_SECRET
+              name: trading-secrets
+              key: ALPACA_API_KEY
+        - name: ALPACA_SECRET_KEY
           valueFrom:
             secretKeyRef:
-              name: alpaca-credentials
-              key: api-secret
+              name: trading-secrets
+              key: ALPACA_SECRET_KEY
         - name: DB_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: trading-db-credentials
-              key: password
+              name: trading-secrets
+              key: DB_PASSWORD
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: redis-credentials
-              key: password
-              optional: true
+              name: trading-secrets
+              key: REDIS_PASSWORD
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
         resources:
           requests:
             memory: "256Mi"
@@ -53,6 +55,10 @@ spec:
           limits:
             memory: "512Mi"
             cpu: "500m"
+      volumes:
+      - name: config
+        configMap:
+          name: trading-config
         livenessProbe:
           exec:
             command:

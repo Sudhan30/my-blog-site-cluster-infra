@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: data-integrity
+  namespace: trading
+  labels:
+    app: data-integrity
+spec:
+  # CRITICAL: Single replica only - no horizontal scaling
+  # This service coordinates state. Multiple replicas would cause race conditions.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: data-integrity
+  template:
+    metadata:
+      labels:
+        app: data-integrity
+    spec:
+      containers:
+      - name: data-integrity
+        image: ghcr.io/sudhan30/data-integrity:latest
+        imagePullPolicy: Always
+        env:
+        - name: ALPACA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: alpaca-credentials
+              key: api-key
+        - name: ALPACA_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: alpaca-credentials
+              key: api-secret
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trading-db-credentials
+              key: password
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-credentials
+              key: password
+              optional: true
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+      restartPolicy: Always

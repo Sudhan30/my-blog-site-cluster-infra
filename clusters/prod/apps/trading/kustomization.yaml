@@ -11,3 +11,4 @@ resources:
   - deployment-strategy-engine.yaml
   - deployment-order-executor.yaml
   - deployment-portfolio-tracker.yaml
+  - data-integrity-deployment.yaml

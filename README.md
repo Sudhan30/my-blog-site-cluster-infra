@@ -173,10 +173,12 @@ CREATE TABLE likes (
 - `trading` - High-frequency trading system
 
 ### **Key Resources**
-- **Deployments**: blog, blog-backend, infra, strategy-engine, order-executor
-- **Services**: blog, blog-backend-service, infra, timescaledb
-- **Ingress**: blog (with TLS)
-- **HPA**: blog (auto-scaling)
+- **Deployments**: 
+  - **Web**: `blog`, `blog-backend`, `infra`
+  - **Trading**: `strategy-engine`, `order-executor`, `data-ingestion`, `portfolio-tracker`, `data-integrity`, `reconciliation`, `redis`, `timescaledb`
+- **Services**: `blog`, `blog-backend-service`, `infra`, `timescaledb`, `redis`
+- **Ingress**: `blog` (with TLS)
+- **HPA**: `blog` (auto-scaling)
 - **PVC**: Data persistence (Postgres, TimescaleDB, Redis)
 
 ## 📁 **Repository Structure**

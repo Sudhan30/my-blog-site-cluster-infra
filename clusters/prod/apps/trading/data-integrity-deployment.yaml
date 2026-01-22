@@ -17,10 +17,12 @@ spec:
       labels:
         app: data-integrity
     spec:
+      imagePullSecrets:
+      - name: docker-hub-creds
       containers:
       - name: data-integrity
-        image: ghcr.io/sudhan30/data-integrity:latest
-        imagePullPolicy: Always
+        image: docker.io/sudhan03/algo-trading:data-integrity-latest
+        imagePullPolicy: IfNotPresent
         env:
         - name: ALPACA_API_KEY
           valueFrom:

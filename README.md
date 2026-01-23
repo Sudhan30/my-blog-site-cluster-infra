@@ -47,7 +47,7 @@ A complete Kubernetes infrastructure setup hosting two primary applications:
 - **Data Ingestion**: Real-time market data feed handler
 - **Order Executor**: Low-latency trade execution
 - **Portfolio Tracker**: PnL and position monitoring
-- **Data Integrity**: Gap detection and self-healing
+- **Data Integrity**: Gap detection, strict validation, and self-healing
 - **TimescaleDB**: Time-series data storage for market data
 
 ## 🚀 **Quick Start**

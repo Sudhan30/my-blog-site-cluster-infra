@@ -40,6 +40,13 @@ data:
         - NASDAQ
       backfill_lookback_days: 15    # Trading days to look back for gap repair
     
+    # Data Integrity Controller Settings
+    # STRICT_MODE: Event-driven, zero unknown gaps allowed
+    data_integrity:
+      strict_mode: true             # Enable strict validation
+      grace_period_days: 7          # Gaps older than this may be acknowledged
+      max_backfill_retries: 3       # Attempts before auto-acknowledge (if old)
+    
     risk_management:
       max_portfolio_risk_pct: 5.0
       max_position_size_pct: 50.0

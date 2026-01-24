@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: ops-dashboard
-        image: docker.io/sudhan03/algo-trading:ops-dashboard-890f61b
+        image: docker.io/sudhan03/algo-trading:ops-dashboard-cec046b
         imagePullPolicy: Always
         ports:
         - containerPort: 8501

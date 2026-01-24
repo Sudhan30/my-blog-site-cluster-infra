@@ -1,0 +1,54 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops-dashboard
+  namespace: trading
+  labels:
+    app: ops-dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ops-dashboard
+  template:
+    metadata:
+      labels:
+        app: ops-dashboard
+    spec:
+      containers:
+      - name: ops-dashboard
+        image: docker.io/sudhan03/algo-trading:ops-dashboard-latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8501
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: DB_HOST
+          value: "timescaledb"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: DB_PASSWORD
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ops-dashboard
+  namespace: trading
+spec:
+  selector:
+    app: ops-dashboard
+  ports:
+  - port: 80
+    targetPort: 8501
+  type: LoadBalancer 

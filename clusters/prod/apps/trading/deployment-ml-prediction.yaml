@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-prediction
+  namespace: trading
+  labels:
+    app: ml-prediction
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ml-prediction
+  template:
+    metadata:
+      labels:
+        app: ml-prediction
+    spec:
+      imagePullSecrets:
+      - name: docker-hub-creds
+      containers:
+      - name: ml-prediction
+        image: docker.io/sudhan03/algo-trading:ml-prediction-latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+          name: http
+        env:
+        - name: DB_HOST
+          value: "timescaledb"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: "trading_db"
+        - name: DB_USER
+          value: "trading_user"
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: DB_PASSWORD
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        - name: models
+          mountPath: /app/models
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 30
+      volumes:
+      - name: config
+        configMap:
+          name: trading-config
+      - name: models
+        persistentVolumeClaim:
+          claimName: trading-pvc
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-prediction
+  namespace: trading
+  labels:
+    app: ml-prediction
+spec:
+  selector:
+    app: ml-prediction
+  ports:
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: http
+  type: ClusterIP

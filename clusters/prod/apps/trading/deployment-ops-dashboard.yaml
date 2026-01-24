@@ -49,6 +49,6 @@ spec:
   selector:
     app: ops-dashboard
   ports:
-  - port: 80
+  - port: 8501
     targetPort: 8501
-  type: LoadBalancer 
+  type: ClusterIP 

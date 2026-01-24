@@ -7,141 +7,332 @@ metadata:
 data:
   config.yaml: |
     # Algorithmic Trading System Configuration
-    # This config is mounted into the trading services
     
+    # Broker Configuration
     broker:
       name: "alpaca"
-      paper_trading: true
-      base_url: "https://paper-api.alpaca.markets"
+      # Set these as environment variables: ALPACA_API_KEY, ALPACA_SECRET_KEY
+      paper_trading: true  # Set to false for live trading
+      base_url: "https://paper-api.alpaca.markets"  # Change to https://api.alpaca.markets for live
     
+    # Market Data Configuration
     market_data:
-      primary_source: "alpaca"
-      backup_source: "yfinance"
+      primary_source: "alpaca"  # Real-time IEX data
+      backup_source: "yfinance"  # Delayed data as backup
       websocket_enabled: true
-    
+      
+    # Stock Universe - S&P 500 Companies
+    # This list will be auto-updated daily
     stock_universe:
       update_frequency: "daily"
-      max_stocks: 50
-      min_price: 5.0
-      min_volume: 1000000
+      max_stocks: 600
+      min_price: 5.0  # Minimum stock price to trade
+      min_volume: 1000000  # Minimum daily volume
     
+    # Trading Hours (Eastern Time)
     trading_hours:
       market_open: "09:30"
       market_close: "16:00"
       premarket_enabled: false
       afterhours_enabled: false
     
-    # STOCK_ONLY Mode Configuration
-    # When enabled, disables all crypto trading and enforces US market hours
+    # Session Structure Gating ("The Lunch Lady")
+    # Blocks entries during low-probability "Chop" windows
+    session_gating:
+      enabled: true
+      exclude_windows:
+        # Midday Chop: 11:30 - 13:30 ET
+        - start: "11:30"
+          end: "13:30"
+          # Exception: Allow trade if volume is massive (e.g. breaking news)
+          min_volume_multiplier: 2.0
+      
+    # Market Mode Configuration (STOCK_ONLY)
+    # When stock_only is true:
+    # - All crypto symbols, feeds, and trading logic are disabled
+    # - Only US equities traded on NYSE and NASDAQ are allowed
+    # - Data is only collected during market hours (09:30-16:00 ET)
+    # - Premarket and after-hours are ignored unless explicitly enabled above
     market_mode:
-      stock_only: true              # Disable crypto, NYSE/NASDAQ only
-      allowed_exchanges:
+      stock_only: true              # Enable STOCK_ONLY mode
+      allowed_exchanges:            # Only symbols from these exchanges
         - NYSE
         - NASDAQ
+      default_timeframe: "5min"     # Default candle timeframe
       backfill_lookback_days: 15    # Trading days to look back for gap repair
     
-    # Data Integrity Controller Settings
-    # STRICT_MODE: Event-driven, zero unknown gaps allowed
-    data_integrity:
-      strict_mode: true             # Enable strict validation
-      grace_period_days: 7          # Gaps older than this may be acknowledged
-      max_backfill_retries: 3       # Attempts before auto-acknowledge (if old)
-    
+    # Risk Management
     risk_management:
-      max_portfolio_risk_pct: 5.0
-      max_position_size_pct: 50.0
-      max_daily_loss_pct: 5.0
-      max_daily_loss_amount: 500.0
-      max_correlation: 0.7
+      max_portfolio_risk_pct: 0.2  # Max 0.2% risk (Scaled down for 0.5% position)
+      max_position_size_pct: 0.5  # Max 0.5% of portfolio per position (User Requested)
+      max_daily_loss_pct: 5.0  # Stop trading if daily loss exceeds 5%
+      max_daily_loss_amount: 25.0  # Or $25, whichever comes first
+      max_correlation: 0.7  # Avoid over-concentration in correlated stocks
+      
+      # NEW: Portfolio-level exposure limits (prevents hidden leverage)
+      max_long_exposure_pct: 80      # Max 80% portfolio in long positions
+      max_short_exposure_pct: 30     # Max 30% portfolio in short positions
+      max_correlated_positions: 3    # Max 3 positions in same correlation group
+      
+      # Pattern Day Trader Rule Compliance
       pdt_rule:
-        enabled: false
-        max_day_trades: 999
+        enabled: false  # Disabled for paper trading testing with $100k
+        max_day_trades: 999  # Unlimited for testing
         tracking_days: 5
-        min_balance_exempt: 25000
+        min_balance_exempt: 25000  # PDT rule doesn't apply above this amount
     
+    # Regime Detection (controls which strategies run)
+    regime_detection:
+      enabled: true
+      adx_trend_threshold: 25      # ADX > 25 = trending market
+      adx_range_threshold: 20      # ADX < 20 = ranging market
+      vwap_range_pct: 1.0          # Price within 1% of VWAP = ranging
+      vix_crisis_threshold: 30     # VIX > 30 = crisis mode
+      vix_spike_pct: 20            # VIX spike > 20% = crisis
+      vol_expansion_multiplier: 1.5  # Short-term vol > 1.5x long-term = expanding
+      
+      # Third-order improvements
+      regime_change_bars: 3        # Bars before regime change confirmed
+      min_regime_duration: 15      # Min minutes between regime changes
+      adx_hysteresis: 3            # ADX buffer to prevent oscillation
+    
+    # Strategy Exclusivity (prevents collision)
+    strategy_exclusivity:
+      enabled: true
+      cooling_period_minutes: 30   # Lock symbol after strategy entry
+    
+    # Liquidity Filter
+    liquidity_filter:
+      enabled: true
+      min_volume_percentile: 30    # Min volume vs hour average
+      max_trade_size_pct: 5.0      # Max trade as % of minute volume
+    
+    # Portfolio Heat Management
+    heat_management:
+      enabled: true
+      max_portfolio_heat_pct: 10.0  # Max % of portfolio at risk
+    
+    # Signal Ranking & Scarcity (New Phase 3)
+    strategy_engine:
+      signal_timeframe_minutes: 15
+      max_signals_per_batch: 5      # Only execute top 5 signals per minute
+    
+    # Sector Relative Strength ("The Rotator")
+    sector_relative_strength:
+      enabled: true
+      min_rs_score: 0.0             # Must be >= 0 (outperform sector)
+    
+    # Time-Decay Attribution ("Opportunity Cost Exits")
+    # Close stagnant positions to free up capital
+    time_decay:
+      enabled: true
+      max_stale_hours: 4.0          # Close if held > 4 hours
+      min_profit_threshold_pct: 0.5 # AND profit is < 0.5% (stagnant)
+      profit_protect_threshold_pct: 1.5 # BUT keep holding if profit > 1.5% (let winners run)
+    
+    # Time Sync Validation (clock drift protection)
+    time_sync:
+      enabled: true
+      max_bar_age_seconds: 120       # Max age of bar before blocking
+      max_gap_multiplier: 3          # Max gap between bars
+      max_consecutive_violations: 5  # Violations before halt
+    
+    # Strategy Performance Monitoring (edge decay detection)
+    performance_monitoring:
+      enabled: true
+      recent_window_trades: 20       # Recent trades to compare
+      baseline_window_trades: 100    # Baseline trades
+      win_rate_decay_threshold: 0.20 # 20% decline triggers demotion
+      r_multiple_decay_threshold: 0.30
+    
+    # Dynamic Correlation (intraday correlation tracking)
+    dynamic_correlation:
+      enabled: true
+      correlation_threshold: 0.7     # Threshold for grouping
+      lookback_minutes: 60           # Rolling window
+      max_dynamic_correlated: 2      # Max correlated positions
+    
+    # Thesis Invalidation (early exit on invalidated thesis)
+    thesis_invalidation:
+      enabled: true
+      breakout_volume_decay: 0.5     # Volume decline to invalidate
+      momentum_rs_loss: 0.0          # RS loss vs SPY
+      mean_reversion_vwap_shift: 1.5 # VWAP shift % to invalidate
+    
+    # System State Machine (gates all trading)
+    system_state:
+      warmup_minutes: 15             # Time before trading starts
+      min_bars_warmup: 20            # Bars before trading starts
+      degraded_allocation: 0.3       # Allocation in DEGRADED mode
+      degraded_min_confidence: 0.7   # Min confidence in DEGRADED mode
+    
+    # Symbol Circuit Breakers (lock toxic symbols)
+    circuit_breakers:
+      enabled: true
+      max_consecutive_losses: 3      # Losses before locking
+      max_slippage_pct: 0.5          # Avg slippage before locking
+      lockout_minutes: 240           # How long to lock symbol
+    
+    # Edge Preservation (controlled retreat on drawdown)
+    edge_preservation:
+      enabled: true
+      caution_threshold: 1.0         # 1% drawdown -> CAUTION
+      defensive_threshold: 2.5       # 2.5% drawdown -> DEFENSIVE
+      critical_threshold: 4.0        # 4% drawdown -> CRITICAL
+    
+    # Phase 10-A: Trade Pacing (throttle entry velocity)
+    trade_pacing:
+      enabled: true                  # Feature flag
+      target_trades_per_day: 75      # Hard cap - absolute block
+      soft_throttle_start: 60        # Begin probabilistic skip
+      throttle_probability: 0.5      # Chance of skip after soft cap
+    
+    
+    # Trade Lifecycle States
+    trade_lifecycle:
+      defensive_adverse_pct: 0.5     # Adverse move for DEFENSIVE
+      profit_protect_gain_pct: 1.0   # Gain for PROFIT_PROTECT
+    
+    # Strategy Configuration
     strategies:
+      # Moving Average Crossover
       moving_average:
-        enabled: false
+        enabled: true
         short_period: 9
         long_period: 21
         timeframe_day_trade: "5min"
         timeframe_long_term: "1day"
-        min_volume_multiplier: 1.5
-      
+        min_volume_multiplier: 1.5  # Volume must be 1.5x average
+        
+      # Mean Reversion
       mean_reversion:
         enabled: true
         bollinger_period: 20
         bollinger_std: 2.0
         rsi_period: 14
-        rsi_oversold: 25
+        rsi_oversold: 30
         rsi_overbought: 70
         timeframe: "15min"
-      
+        
+      # Momentum
       momentum:
         enabled: true
-        roc_period: 12
-        roc_threshold: 5.0
+        roc_period: 12  # Rate of Change period
+        roc_threshold: 5.0  # Minimum ROC percentage
         rsi_period: 14
         macd_fast: 12
         macd_slow: 26
         macd_signal: 9
         volume_confirmation: true
         timeframe: "30min"
-      
+    
+      # Dip Buyer (Buy the Dip)
       dip_buyer:
         enabled: true
         dip_percentage: 5.0
         lookback_period: 24
-      
+    
+      # Breakout Strategy (New)
       breakout:
         enabled: true
         lookback_period: 20
         volume_threshold: 1.5
-      
+    
+      # News Sentiment (AI/NLP)
       news_sentiment:
         enabled: true
-        sentiment_threshold: 0.3
+        sentiment_threshold: 0.2
         news_limit: 5
-      
-      trend_following:
-        enabled: true
-        ema_period: 50
-        rsi_period: 14
-        rsi_entry: 30
-        volume_threshold: 1.2
-      
-      golden_cross:
-        enabled: true
-        fast_period: 50
-        slow_period: 200
-        confirmation_bars: 3
-      
-      scalping:
-        enabled: false  # Disabled - conflicts with 30-min hold time
-        rsi_oversold: 40
-        rsi_overbought: 60
-        profit_target_pct: 1.0
-        volume_threshold: 1.0
     
+      # Panic Selling Exhaustion Reversal (Rare but profitable)
+      panic_reversal:
+        enabled: true
+        panic_candle_std: 3.0          # Std devs for panic candle detection
+        volume_spike_multiplier: 2.5   # Volume vs average for panic
+        consolidation_bars: 5          # Bars to form exhaustion base
+        min_panic_drop_pct: 1.5        # Minimum % drop in panic candle
+    
+      # Zweig Breadth Thrust (Market breadth indicator)
+      breadth_thrust:
+        enabled: true
+        oversold_threshold: 0.40       # ZBT must drop below this first
+        thrust_threshold: 0.615        # Then surge above this for signal
+        lookback_days: 10              # Window for oversold check
+        ema_period: 10                 # EMA smoothing period
+        use_regime_filter: true        # Only trade when SPY > 200 SMA
+        sma_period: 200                # SMA for regime filter
+    
+      # UVXY Volatility Short (Mean reversion on vol spikes)
+      uvxy_volatility:
+        enabled: true
+        bb_period: 20                  # Bollinger Band period
+        bb_std: 2.0                    # Bollinger Band std devs
+        rsi_period: 14                 # RSI period
+        rsi_overbought: 70             # RSI threshold for overbought
+        min_upper_shadow_ratio: 2.0    # Shooting star upper shadow ratio
+        use_regime_filter: true        # Only short when SPY > 200 SMA
+        stop_loss_pct: 5.0             # Hard stop for shorts
+    
+    # Position Management
     position_management:
-      take_profit_pct: 5.0
-      stop_loss_pct: 2.0
+      take_profit_pct: 5.0  # Take profit at 5% gain (User requested)
+      stop_loss_pct: 2.5  # Stop loss at 2.5% loss (Half of TP)
       trailing_stop: true
-      trailing_stop_pct: 3.0
-      partial_exit: false
+      trailing_stop_pct: 1.0  # Trail by 1%
+      partial_exit: false  # Sell entire position at once
     
+    # Database Configuration
     database:
-      host: "timescaledb"
+      host: "timescaledb"  # Kubernetes service name
       port: 5432
       name: "trading_db"
       user: "trading_user"
+      # Password set via environment variable: DB_PASSWORD
     
+    # Redis Configuration
     redis:
-      host: "redis"
+      host: "redis"  # Kubernetes service name
       port: 6379
       db: 0
+      # Password set via environment variable: REDIS_PASSWORD
     
+    # Monitoring & Alerts
+    monitoring:
+      prometheus_port: 8000
+      grafana_enabled: true
+      
+      alerts:
+        # Notification channels
+        telegram:
+          enabled: false
+          # Set via environment variable: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+        
+        slack:
+          enabled: false
+          # Set via environment variable: SLACK_WEBHOOK_URL
+        
+        email:
+          enabled: false
+          # Set via environment variables: EMAIL_FROM, EMAIL_TO, SMTP_SERVER, etc.
+        
+      # Alert triggers
+      alert_on:
+        - trade_execution
+        - daily_pnl_summary
+        - risk_limit_breach
+        - system_error
+        - large_drawdown
+    
+    # Logging
     logging:
-      level: "INFO"
+      level: "INFO"  # DEBUG, INFO, WARNING, ERROR
       format: "json"
       retention_days: 90
+    
+    # Backtesting
+    backtesting:
+      initial_capital: 500.0
+      commission: 0.0  # Alpaca is commission-free
+      slippage_pct: 0.05  # Assume 0.05% slippage
+      start_date: "2024-01-01"
+      end_date: "2024-12-19"

@@ -16,6 +16,8 @@ spec:
       labels:
         app: ops-dashboard
     spec:
+      imagePullSecrets:
+      - name: docker-hub-creds
       containers:
       - name: ops-dashboard
         image: docker.io/sudhan03/algo-trading:ops-dashboard-862afbb

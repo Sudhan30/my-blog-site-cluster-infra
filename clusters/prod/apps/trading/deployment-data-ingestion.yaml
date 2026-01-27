@@ -53,8 +53,8 @@ spec:
               memory: "4Gi"
               cpu: "2000m"
             limits:
-              memory: "8Gi"
-              cpu: "4000m"
+              memory: "32Gi"
+              cpu: "8000m"
       volumes:
       - name: config
         configMap:

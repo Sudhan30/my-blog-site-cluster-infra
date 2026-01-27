@@ -20,7 +20,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: ml-prediction
-        image: docker.io/sudhan03/algo-trading:ml-prediction-862afbb
+        image: docker.io/sudhan03/algo-trading:ml-prediction-cb90beb
         imagePullPolicy: Always
         ports:
         - containerPort: 8000

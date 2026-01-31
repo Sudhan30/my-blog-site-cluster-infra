@@ -20,7 +20,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: market-scheduler
-        image: docker.io/sudhan03/algo-trading:market-scheduler-d8f92fb
+        image: docker.io/sudhan03/algo-trading:market-scheduler-44b1944
         imagePullPolicy: Always
         env:
         - name: REDIS_HOST

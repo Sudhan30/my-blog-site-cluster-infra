@@ -17,24 +17,64 @@ spec:
       labels:
         app: dagster
     spec:
+      serviceAccountName: dagster
       containers:
-      - name: dagster
+      # 1. Webserver (UI)
+      - name: dagster-webserver
         image: docker.io/sudhan03/algo-trading:portfolio-tracker-latest
         imagePullPolicy: Always
-        command: ["dagster", "dev", "-h", "0.0.0.0", "-p", "3000", "-f", "orchestrator/__init__.py"]
+        command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-f", "orchestrator/__init__.py"]
         ports:
         - containerPort: 3000
+        env:
+        - name: DAGSTER_HOME
+          value: /app/dagster_home
         envFrom:
         - secretRef:
             name: trading-secrets
         - configMapRef:
             name: trading-config
         volumeMounts:
-        - name: dagster-home
-          mountPath: /app/dagster_home
+        - name: dagster-instance
+          mountPath: /app/dagster_home/dagster.yaml
+          subPath: dagster.yaml
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
+      # 2. Daemon (Scheduler & Runner)
+      - name: dagster-daemon
+        image: docker.io/sudhan03/algo-trading:portfolio-tracker-latest
+        imagePullPolicy: Always
+        command: ["dagster-daemon", "run"]
+        env:
+        - name: DAGSTER_HOME
+          value: /app/dagster_home
+        envFrom:
+        - secretRef:
+            name: trading-secrets
+        - configMapRef:
+            name: trading-config
+        volumeMounts:
+        - name: dagster-instance
+          mountPath: /app/dagster_home/dagster.yaml
+          subPath: dagster.yaml
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+
       volumes:
-      - name: dagster-home
-        emptyDir: {} # Ephemeral storage for now
+      - name: dagster-instance
+        configMap:
+          name: dagster-instance
 ---
 apiVersion: v1
 kind: Service

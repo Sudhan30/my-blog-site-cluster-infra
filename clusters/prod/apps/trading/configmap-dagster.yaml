@@ -31,12 +31,5 @@ data:
     
     storage:
       postgres:
-        postgres_db:
-          hostname: timescaledb
-          username:
-            env: DB_USER
-          password:
-            env: DB_PASSWORD
-          db_name:
-            env: DB_NAME
-          port: 5432
+        postgres_url:
+          env: DB_CONN_STRING

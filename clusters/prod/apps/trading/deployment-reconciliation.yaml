@@ -24,7 +24,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: reconciliation
-        image: docker.io/sudhan03/algo-trading:reconciliation-49f8475
+        image: docker.io/sudhan03/algo-trading:reconciliation-d8f92fb
         imagePullPolicy: Always
         env:
         - name: ALPACA_API_KEY

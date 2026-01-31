@@ -17,6 +17,8 @@ spec:
       labels:
         app: dagster
     spec:
+      imagePullSecrets:
+      - name: docker-hub-creds
       serviceAccountName: dagster
       containers:
       # 1. Webserver (UI)

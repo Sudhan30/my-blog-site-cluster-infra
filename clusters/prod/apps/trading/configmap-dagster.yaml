@@ -20,12 +20,27 @@ data:
       module: dagster_k8s
       class: K8sRunLauncher
       config:
+        # REQUIRED: ConfigMap name containing this instance configuration
+        instance_config_map: dagster-instance
+
+        # Kubernetes namespace where job pods will be launched
+        job_namespace: trading
+
+        # Service account for job pods
         service_account_name: dagster
+
+        # Docker image for run pods
         job_image: docker.io/sudhan03/algo-trading:portfolio-tracker-latest
         image_pull_policy: Always
-        namespace: trading
+
+        # Load K8s config from within cluster
+        load_incluster_config: true
+
+        # Environment from ConfigMaps
         env_config_maps:
           - trading-config
+
+        # Environment from Secrets
         env_secrets:
           - trading-secrets
     

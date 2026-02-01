@@ -1,0 +1,50 @@
+# Dagster Instance Configuration - Production Mode
+# This is the current production configuration
+# Uses PostgreSQL storage and K8sRunLauncher (runs as separate K8s jobs)
+
+scheduler:
+  module: dagster.core.scheduler
+  class: DagsterDaemonScheduler
+
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+
+run_launcher:
+  module: dagster_k8s
+  class: K8sRunLauncher
+  config:
+    # REQUIRED: ConfigMap name containing this instance configuration
+    instance_config_map: dagster-instance
+
+    # Kubernetes namespace where job pods will be launched
+    job_namespace: trading
+
+    # Service account for job pods
+    service_account_name: dagster
+
+    # Docker image for run pods
+    job_image: docker.io/sudhan03/algo-trading:portfolio-tracker-latest
+    image_pull_policy: Always
+
+    # Load K8s config from within cluster
+    load_incluster_config: true
+
+    # Environment from ConfigMaps
+    env_config_maps:
+      - trading-config
+
+    # Environment from Secrets
+    env_secrets:
+      - trading-secrets
+
+storage:
+  postgres:
+    postgres_db:
+      hostname: timescaledb
+      username:
+        env: DB_USER
+      password:
+        env: DB_PASSWORD
+      db_name: trading_db
+      port: 5432

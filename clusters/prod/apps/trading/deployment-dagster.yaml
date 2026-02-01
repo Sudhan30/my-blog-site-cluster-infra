@@ -64,7 +64,7 @@ spec:
       - name: dagster-daemon
         image: docker.io/sudhan03/algo-trading:portfolio-tracker-224a506
         imagePullPolicy: Always
-        command: ["dagster-daemon", "run"]
+        command: ["dagster-daemon", "run", "-f", "orchestrator/__init__.py"]
         env:
         - name: DAGSTER_HOME
           value: /app/dagster_home

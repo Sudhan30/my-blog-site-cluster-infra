@@ -124,10 +124,10 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-  - host: dagster.sudharsana.dev
+  - host: sudduserver.duckdns.org
     http:
       paths:
-      - path: /
+      - path: /dagster
         pathType: Prefix
         backend:
           service:

@@ -108,12 +108,15 @@ metadata:
   name: dagster
   namespace: trading
 spec:
+  type: NodePort
   selector:
     app: dagster
   ports:
   - protocol: TCP
     port: 3000
     targetPort: 3000
+    nodePort: 30030
+    name: http
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress

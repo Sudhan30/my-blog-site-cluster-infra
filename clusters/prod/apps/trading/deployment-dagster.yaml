@@ -22,6 +22,7 @@ spec:
       serviceAccountName: dagster
       containers:
       # 1. Webserver (UI)
+      # IMPORTANT: When updating this image tag, also update job_image in configmap-dagster.yaml
       - name: dagster-webserver
         image: docker.io/sudhan03/algo-trading:portfolio-tracker-7aee726
         imagePullPolicy: Always

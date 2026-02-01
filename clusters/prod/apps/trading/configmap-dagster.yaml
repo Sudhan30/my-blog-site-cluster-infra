@@ -30,7 +30,7 @@ data:
         service_account_name: dagster
 
         # Docker image for run pods (must match deployment image tag)
-        job_image: docker.io/sudhan03/algo-trading:portfolio-tracker-7cc95fa
+        job_image: docker.io/sudhan03/algo-trading:portfolio-tracker-7aee726
         image_pull_policy: Always
 
         # Load K8s config from within cluster

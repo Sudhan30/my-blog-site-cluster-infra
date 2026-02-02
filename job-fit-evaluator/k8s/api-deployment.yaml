@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: job-fit-api
+  namespace: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: job-fit-api
+  template:
+    metadata:
+      labels:
+        app: job-fit-api
+    spec:
+      containers:
+      - name: backend
+        image: python:3.10-slim
+        # No imagePullPolicy: Never anymore, let it pull from Docker Hub
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            pip install fastapi uvicorn requests pydantic && 
+            uvicorn main:app --host 0.0.0.0 --port 8000
+        ports:
+        - containerPort: 8000
+        env:
+        - name: OLLAMA_HOST
+          value: "http://ollama-service:11434"
+        volumeMounts:
+        - name: code-volume
+          mountPath: /app/main.py
+          subPath: main.py
+        workingDir: /app
+      volumes:
+      - name: code-volume
+        configMap:
+          name: job-fit-backend-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: job-fit-api-service
+  namespace: web
+spec:
+  selector:
+    app: job-fit-api
+  ports:
+  - protocol: TCP
+    port: 8000
+    targetPort: 8000
+    nodePort: 30080
+  type: NodePort

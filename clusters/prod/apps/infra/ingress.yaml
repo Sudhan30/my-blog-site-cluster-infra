@@ -12,7 +12,6 @@ spec:
   tls:
   - hosts:
     - blog.sudharsana.dev
-    - api.sudharsana.dev
     secretName: blog-infra-tls
   rules:
   - host: blog.sudharsana.dev
@@ -25,13 +24,3 @@ spec:
             name: blog-infra-service
             port:
               number: 80
-  - host: api.sudharsana.dev
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: blog-infra-service
-            port:
-              number: 3001

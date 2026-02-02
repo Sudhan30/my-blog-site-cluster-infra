@@ -30,7 +30,7 @@ data:
         service_account_name: dagster
 
         # Docker image for run pods (must match deployment image tag)
-        job_image: docker.io/sudhan03/algo-trading:portfolio-tracker-7aee726
+        job_image: docker.io/sudhan03/algo-trading:portfolio-tracker-30ca58d
         image_pull_policy: Always
 
         # Image pull secrets for private registry access
@@ -57,6 +57,10 @@ data:
         volume_mounts:
           - name: dagster-logs
             mount_path: /opt/dagster/logs
+
+        # Delete completed run pods immediately (logs are stored in PVC)
+        job_spec_config:
+          ttl_seconds_after_finished: 0
 
     storage:
       postgres:

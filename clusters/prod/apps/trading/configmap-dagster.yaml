@@ -33,6 +33,10 @@ data:
         job_image: docker.io/sudhan03/algo-trading:portfolio-tracker-7aee726
         image_pull_policy: Always
 
+        # Image pull secrets for private registry access
+        image_pull_secrets:
+          - name: docker-hub-creds
+
         # Load K8s config from within cluster
         load_incluster_config: true
 

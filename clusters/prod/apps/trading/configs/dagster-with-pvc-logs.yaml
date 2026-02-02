@@ -1,0 +1,55 @@
+# Dagster Instance Config with Persistent Volume Compute Logs
+# This configuration uses a Kubernetes PVC for compute log storage
+
+scheduler:
+  module: dagster.core.scheduler
+  class: DagsterDaemonScheduler
+
+run_coordinator:
+  module: dagster.core.run_coordinator
+  class: QueuedRunCoordinator
+
+run_launcher:
+  module: dagster_k8s
+  class: K8sRunLauncher
+  config:
+    instance_config_map: dagster-instance
+    job_namespace: trading
+    service_account_name: dagster
+    job_image: docker.io/sudhan03/algo-trading:portfolio-tracker-7aee726
+    image_pull_policy: Always
+    image_pull_secrets:
+      - name: docker-hub-creds
+    load_incluster_config: true
+    env_config_maps:
+      - trading-config
+    env_secrets:
+      - trading-secrets
+
+    # Mount shared volume for compute logs
+    volumes:
+      - name: dagster-logs
+        persistentVolumeClaim:
+          claimName: dagster-logs-pvc
+
+    volume_mounts:
+      - name: dagster-logs
+        mount_path: /opt/dagster/logs
+
+storage:
+  postgres:
+    postgres_db:
+      hostname: timescaledb
+      username:
+        env: DB_USER
+      password:
+        env: DB_PASSWORD
+      db_name: trading_db
+      port: 5432
+
+# ✅ ADD THIS: Local filesystem compute log storage (on shared PVC)
+compute_logs:
+  module: dagster.core.storage.local_compute_log_manager
+  class: LocalComputeLogManager
+  config:
+    base_dir: /opt/dagster/logs

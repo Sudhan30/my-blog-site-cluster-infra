@@ -1,0 +1,18 @@
+---
+# PersistentVolumeClaim for Dagster compute logs
+# This provides shared storage for job logs across all run pods
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dagster-logs-pvc
+  namespace: trading
+  labels:
+    app: dagster
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  accessModes:
+    - ReadWriteMany  # Multiple pods can write logs simultaneously
+  resources:
+    requests:
+      storage: 10Gi  # Adjust based on your needs
+  # storageClassName: your-storage-class  # Uncomment if you have a specific storage class

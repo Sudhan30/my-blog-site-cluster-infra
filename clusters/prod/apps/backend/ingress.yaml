@@ -8,6 +8,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     cert-manager.io/cluster-issuer: "letsencrypt-prod"
 spec:
+  ingressClassName: traefik
   tls:
   - hosts:
     - api.sudharsana.dev
@@ -16,6 +17,13 @@ spec:
   - host: api.sudharsana.dev
     http:
       paths:
+      - path: /job-fit
+        pathType: Prefix
+        backend:
+          service:
+            name: job-fit-api-service
+            port:
+              number: 8000
       - path: /
         pathType: Prefix
         backend:

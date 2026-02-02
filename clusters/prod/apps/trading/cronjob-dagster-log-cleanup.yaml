@@ -1,0 +1,47 @@
+---
+# Automatic cleanup of Dagster compute logs older than 7 days
+# Runs daily at 2 AM - simple, reliable, K8s-native
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dagster-log-cleanup
+  namespace: trading
+  labels:
+    app: dagster
+    component: log-cleanup
+spec:
+  schedule: "0 2 * * *"  # 2 AM daily
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: cleanup
+            image: busybox:latest
+            command:
+            - sh
+            - -c
+            - |
+              echo "🧹 Cleaning logs older than 7 days..."
+              find /logs -type f -mtime +7 -delete
+              find /logs -type d -empty -delete
+              echo "✅ Cleanup complete. Current usage:"
+              du -sh /logs
+
+            volumeMounts:
+            - name: dagster-logs
+              mountPath: /logs
+
+            resources:
+              limits:
+                memory: 128Mi
+                cpu: 100m
+
+          volumes:
+          - name: dagster-logs
+            persistentVolumeClaim:
+              claimName: dagster-logs-pvc

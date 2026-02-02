@@ -75,3 +75,12 @@ data:
       class: LocalComputeLogManager
       config:
         base_dir: /opt/dagster/logs
+
+    # Automatic retention policies (handled by Dagster daemon)
+    retention:
+      schedule:
+        purge_after_days: 90  # Delete runs older than 90 days
+      sensor:
+        purge_after_days: 90
+      auto_materialize:
+        purge_after_days: 90

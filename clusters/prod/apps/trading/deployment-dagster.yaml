@@ -24,7 +24,7 @@ spec:
       # 1. Webserver (UI)
       # IMPORTANT: When updating this image tag, also update job_image in configmap-dagster.yaml
       - name: dagster-webserver
-        image: docker.io/sudhan03/algo-trading:portfolio-tracker-30ca58d
+        image: docker.io/sudhan03/algo-trading:portfolio-tracker-945acf1
         imagePullPolicy: Always
         command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-f", "orchestrator/__init__.py"]
         ports:
@@ -66,7 +66,7 @@ spec:
 
       # 2. Daemon (Scheduler & Runner)
       - name: dagster-daemon
-        image: docker.io/sudhan03/algo-trading:portfolio-tracker-30ca58d
+        image: docker.io/sudhan03/algo-trading:portfolio-tracker-945acf1
         imagePullPolicy: Always
         command: ["dagster-daemon", "run", "-f", "orchestrator/__init__.py"]
         env:

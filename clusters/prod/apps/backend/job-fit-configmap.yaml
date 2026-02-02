@@ -82,12 +82,22 @@ data:
 
     @app.post("/job-fit")
     def job_fit(req: FitRequest):
+        print("=" * 60)
+        print("[INPUT] Received job-fit request")
+        print(f"[INPUT] Resume length: {len(req.resume) if req.resume else 0} chars")
+        print(f"[INPUT] Job length: {len(req.job) if req.job else 0} chars")
+        print(f"[INPUT] Preferences: {json.dumps(req.preferences or {}, indent=2)}")
+        print(f"[INPUT] Job (first 500 chars): {req.job[:500] if req.job else 'None'}...")
+        print("=" * 60)
+
         if not req.resume:
+           print("[ERROR] No resume provided")
            return {"error": "Resume text is required"}
 
         key = cache_key(req)
         if key in CACHE:
-            print(f"Cache hit for {key}")
+            print(f"[CACHE] Hit for key: {key}")
+            print(f"[CACHE] Returning cached result: {json.dumps(CACHE[key], indent=2)}")
             return CACHE[key]
 
         prompt = PROMPT_TEMPLATE.format(
@@ -96,12 +106,14 @@ data:
             job=req.job
         )
 
+        print(f"[PROMPT] Total prompt length: {len(prompt)} chars")
+
         try:
-            print(f"Sending request to Ollama at {OLLAMA_HOST}...")
+            print(f"[OLLAMA] Sending request to {OLLAMA_HOST}...")
             r = requests.post(
                 f"{OLLAMA_HOST}/api/generate",
                 json={
-                    "model": "gemma:7b", 
+                    "model": "gemma:7b",
                     "prompt": prompt,
                     "stream": False,
                     "temperature": 0.3,
@@ -111,23 +123,33 @@ data:
             )
             r.raise_for_status()
             text = r.json().get("response", "")
-            print("Received response from Ollama")
+            print(f"[OLLAMA] Response status: {r.status_code}")
+            print(f"[OLLAMA] Raw response length: {len(text)} chars")
+            print(f"[OLLAMA] Raw response: {text}")
 
             try:
                 parsed = json.loads(text)
-            except json.JSONDecodeError:
+                print(f"[PARSE] Successfully parsed JSON")
+            except json.JSONDecodeError as je:
+                print(f"[PARSE] JSON decode error: {je}")
                 start = text.find("{")
                 end = text.rfind("}") + 1
                 if start != -1 and end != -1:
                      parsed = json.loads(text[start:end])
+                     print(f"[PARSE] Extracted JSON from position {start} to {end}")
                 else:
                      parsed = {"error": "invalid_json", "raw": text}
+                     print(f"[PARSE] Could not extract JSON, returning error")
+
+            print(f"[OUTPUT] Final response: {json.dumps(parsed, indent=2)}")
+            print("=" * 60)
 
             CACHE[key] = parsed
             return parsed
 
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"[ERROR] Exception: {type(e).__name__}: {e}")
+            print("=" * 60)
             raise HTTPException(status_code=500, detail=str(e))
 
     @app.get("/health")

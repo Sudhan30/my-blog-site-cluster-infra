@@ -13,3 +13,8 @@ resources:
   - imageautomation.yaml
   - imagepolicy.yaml
   - imagerepository.yaml
+  - ingress.yaml
+  # Job-fit evaluator
+  - job-fit-configmap.yaml
+  - job-fit-deployment.yaml
+  - ollama-deployment.yaml

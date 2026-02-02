@@ -53,6 +53,9 @@ spec:
         - name: dagster-instance
           mountPath: /app/dagster_home/dagster.yaml
           subPath: dagster.yaml
+        # Mount for persistent compute logs
+        - name: dagster-logs
+          mountPath: /opt/dagster/logs
         resources:
           requests:
             memory: "256Mi"
@@ -90,6 +93,9 @@ spec:
         - name: dagster-instance
           mountPath: /app/dagster_home/dagster.yaml
           subPath: dagster.yaml
+        # Mount for persistent compute logs
+        - name: dagster-logs
+          mountPath: /opt/dagster/logs
         resources:
           requests:
             memory: "256Mi"
@@ -102,6 +108,10 @@ spec:
       - name: dagster-instance
         configMap:
           name: dagster-instance
+      # Persistent storage for compute logs
+      - name: dagster-logs
+        persistentVolumeClaim:
+          claimName: dagster-logs-pvc
 ---
 apiVersion: v1
 kind: Service

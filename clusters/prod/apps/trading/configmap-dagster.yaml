@@ -47,7 +47,17 @@ data:
         # Environment from Secrets
         env_secrets:
           - trading-secrets
-    
+
+        # Mount shared volume for compute logs (same as deployment)
+        volumes:
+          - name: dagster-logs
+            persistentVolumeClaim:
+              claimName: dagster-logs-pvc
+
+        volume_mounts:
+          - name: dagster-logs
+            mount_path: /opt/dagster/logs
+
     storage:
       postgres:
         postgres_db:
@@ -58,3 +68,10 @@ data:
             env: DB_PASSWORD
           db_name: trading_db
           port: 5432
+
+    # Persistent compute log storage using shared PVC
+    compute_logs:
+      module: dagster.core.storage.local_compute_log_manager
+      class: LocalComputeLogManager
+      config:
+        base_dir: /opt/dagster/logs

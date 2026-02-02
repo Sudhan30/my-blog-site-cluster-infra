@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/part-of: algo-trading-system
 spec:
   accessModes:
-    - ReadWriteMany  # Multiple pods can write logs simultaneously
+    - ReadWriteOnce  # Single node access (local-path limitation)
   resources:
     requests:
       storage: 10Gi  # Adjust based on your needs

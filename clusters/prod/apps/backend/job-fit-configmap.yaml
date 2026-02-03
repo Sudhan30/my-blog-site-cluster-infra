@@ -172,11 +172,7 @@ data:
         return hashlib.sha256(job.encode()).hexdigest()
 
     # Short prompt for verdict only (LLM just explains precomputed results)
-    VERDICT_PROMPT = """Given these job fit metrics, write a 2-sentence verdict.
-Score: {score}/100 ({level})
-Matched skills: {matched}
-Missing skills: {gaps}
-Return JSON: {{"summary":"<2 sentences>","verdict":"<1 sentence recommendation>"}}"""
+    VERDICT_PROMPT = "Given job fit metrics - Score: {score}/100 ({level}), Matched: {matched}, Gaps: {gaps}. Write 2-sentence summary. Return JSON: {{\"summary\":\"...\",\"verdict\":\"...\"}}"
 
     @app.get("/reload")
     def reload_data():

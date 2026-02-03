@@ -49,7 +49,15 @@ GUIDELINES FOR MATCHING:
    - *Languages/Frameworks*: Proficiency in comparable technologies implies adaptability (e.g. Java/C# or React/Vue).
 2. **Seniority & Experience**: Evaluate potential and scope, not just job titles.
    - *Hierarchy*: "Staff", "Principal", or "Lead" titles indicate a level *above* "Senior". A Staff Engineer is fully qualified for a Senior role.
-   - *Experience*: High-quality experience in a related domain compensates for missing specific tool knowledge.
+3. **Domain Equivalence (Synonyms)**:
+   - *Data Warehouse*: BigQuery, Snowflake, Redshift are interchangeable. Experience in ONE satisfies the requirement for ANY.
+   - *CI/CD*: GitHub Actions, Jenkins, Cloud Build, GitLab CI are transferrable.
+   - *ETL/ELT*: Tools like Airflow, dbt, or "Data Pipelines" experience imply mastery of ELT concepts.
+   - *Orchestration*: Airflow, Dagster, Prefect, Kubeflow are interchangeable.
+
+4. **Negative Scoring**:
+   - Do NOT penalize for missing specific tools if the candidate has **Strong** experience in a competing tool in the same category (e.g. Missing "Redshift" but has "BigQuery" -> NO penalty).
+
 
 Resume:
 {resume}

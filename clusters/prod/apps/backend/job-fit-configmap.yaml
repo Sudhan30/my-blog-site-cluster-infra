@@ -204,11 +204,12 @@ data:
             r = requests.post(
                 f"{OLLAMA_HOST}/api/generate",
                 json={
-                    "model": "gemma:7b",
+                    "model": "gemma:2b",
                     "prompt": prompt,
                     "stream": False,
                     "temperature": 0.3,
-                    "format": "json"
+                    "format": "json",
+                    "keep_alive": "30m"  # Keep model loaded for 30 mins
                 },
                 timeout=120
             )

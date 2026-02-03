@@ -18,6 +18,9 @@ spec:
         image: ollama/ollama:rocm
         ports:
         - containerPort: 11434
+        env:
+        - name: HSA_OVERRIDE_GFX_VERSION
+          value: "11.0.0"
         securityContext:
           privileged: true
         volumeMounts:

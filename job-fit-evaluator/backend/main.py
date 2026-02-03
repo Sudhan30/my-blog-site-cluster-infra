@@ -124,7 +124,7 @@ def job_fit(req: FitRequest):
         r = requests.post(
             f"{OLLAMA_HOST}/api/generate",
             json={
-                "model": "gemma:7b", 
+                "model": "gemma3:12b", 
                 "prompt": prompt,
                 "stream": False,
                 "temperature": 0.3,

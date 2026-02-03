@@ -10,6 +10,8 @@ data:
     import requests
     import hashlib
     import json
+    import re
+    from collections import Counter
     from fastapi.middleware.cors import CORSMiddleware
     import os
     from pathlib import Path
@@ -28,6 +30,59 @@ data:
     CACHE = {}
     OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
     PRIVATE_DATA_PATH = Path(os.getenv("PRIVATE_DATA_PATH", "/app/private"))
+
+    # ============= KEYWORD EXTRACTION & MATCHING =============
+    TECH_KEYWORDS = {
+        # Languages
+        "python", "java", "javascript", "typescript", "go", "rust", "scala", "sql", "bash", "shell",
+        "c++", "c#", "ruby", "php", "swift", "kotlin", "r",
+        # Big Data
+        "spark", "hadoop", "kafka", "airflow", "flink", "hive", "presto", "dbt", "databricks",
+        # Cloud
+        "aws", "gcp", "azure", "s3", "ec2", "lambda", "bigquery", "redshift", "snowflake",
+        # Databases
+        "postgresql", "postgres", "mysql", "mongodb", "redis", "elasticsearch", "cassandra", "dynamodb",
+        # Tools
+        "docker", "kubernetes", "k8s", "terraform", "jenkins", "ci/cd", "git", "github", "gitlab",
+        # ML/AI
+        "machine learning", "ml", "deep learning", "tensorflow", "pytorch", "scikit-learn", "pandas", "numpy",
+        # Data
+        "etl", "elt", "data pipeline", "data warehouse", "data lake", "analytics", "bi",
+        # Roles
+        "data engineer", "software engineer", "backend", "senior", "lead", "principal", "staff",
+    }
+
+    def extract_keywords(text):
+        """Extract tech keywords from text"""
+        text_lower = text.lower()
+        found = set()
+        for kw in TECH_KEYWORDS:
+            if kw in text_lower:
+                found.add(kw)
+        return found
+
+    def calculate_match_score(resume_kw, job_kw, prefs):
+        """Calculate match score based on keyword overlap"""
+        if not job_kw:
+            return 50, [], []
+
+        matched = resume_kw & job_kw
+        missing = job_kw - resume_kw
+        match_ratio = len(matched) / len(job_kw) if job_kw else 0
+
+        # Base score from keyword match
+        score = int(match_ratio * 70) + 30  # 30-100 range
+
+        # Boost for specific preferences
+        prefs_interests = set(i.lower() for i in prefs.get("interests", []))
+        prefs_disinterests = set(d.lower() for d in prefs.get("disinterests", []))
+
+        # Check for disinterests (penalty)
+        for dis in prefs_disinterests:
+            if any(dis in kw for kw in job_kw):
+                score = max(20, score - 20)
+
+        return min(100, score), list(matched), list(missing)[:5]
 
     # Load resume and preferences from server files (not from request)
     def load_resume():
@@ -87,6 +142,7 @@ data:
     # Cache the loaded data
     _resume_cache = None
     _prefs_cache = None
+    _resume_keywords = None  # Precomputed keywords
 
     def get_resume():
         global _resume_cache
@@ -100,76 +156,95 @@ data:
             _prefs_cache = load_preferences()
         return _prefs_cache
 
+    def get_resume_keywords():
+        global _resume_keywords
+        if _resume_keywords is None:
+            resume = get_resume()
+            if resume:
+                _resume_keywords = extract_keywords(resume)
+                print(f"[KEYWORDS] Precomputed {len(_resume_keywords)} resume keywords: {_resume_keywords}")
+        return _resume_keywords or set()
+
     class FitRequest(BaseModel):
         job: str  # Only job description is required from frontend
 
-    def cache_key(job: str, resume: str, preferences: dict):
-        job_part = job[:100] if job else ""
-        resume_part = resume[:100] if resume else ""
-        raw = job_part + resume_part + json.dumps(preferences or {})
-        return hashlib.sha256(raw.encode()).hexdigest()
+    def cache_key(job: str):
+        return hashlib.sha256(job.encode()).hexdigest()
 
-    PROMPT_TEMPLATE = """Evaluate job fit. Score 0-100 (90+=strong, 70-89=good, 50-69=partial, <50=weak).
-
-RESUME: {resume}
-
-PREFS: {preferences}
-
-JOB: {job}
-
-Return JSON only:
-{{"fit_score":0,"fit_level":"","aligned_areas":[],"gaps":[],"summary":"","verdict":""}}"""
+    # Short prompt for verdict only (LLM just explains precomputed results)
+    VERDICT_PROMPT = """Given these job fit metrics, write a 2-sentence verdict.
+Score: {score}/100 ({level})
+Matched skills: {matched}
+Missing skills: {gaps}
+Return JSON: {{"summary":"<2 sentences>","verdict":"<1 sentence recommendation>"}}"""
 
     @app.get("/reload")
     def reload_data():
         """Reload resume and preferences from files"""
-        global _resume_cache, _prefs_cache
+        global _resume_cache, _prefs_cache, _resume_keywords
         _resume_cache = None
         _prefs_cache = None
+        _resume_keywords = None
         resume = get_resume()
         prefs = get_preferences()
+        keywords = get_resume_keywords()
         return {
             "status": "reloaded",
             "resume_loaded": resume is not None,
             "resume_length": len(resume) if resume else 0,
+            "resume_keywords": len(keywords),
             "preferences_loaded": bool(prefs)
         }
 
     @app.post("/job-fit")
     def job_fit(req: FitRequest):
         print("=" * 60)
-        print("[INPUT] Received job-fit request")
+        print("[HYBRID] Job-fit request received")
 
-        # Load resume and preferences from server files
-        resume = get_resume()
-        preferences = get_preferences()
-
-        print(f"[INPUT] Resume length: {len(resume) if resume else 0} chars")
-        print(f"[INPUT] Job length: {len(req.job) if req.job else 0} chars")
-        print(f"[INPUT] Preferences: {json.dumps(preferences, indent=2)}")
-        print(f"[INPUT] Job (first 500 chars): {req.job[:500] if req.job else 'None'}...")
-        print("=" * 60)
-
-        if not resume:
-           print("[ERROR] No resume found on server")
-           return {"error": "Resume file not found on server. Contact admin."}
-
-        key = cache_key(req.job, resume, preferences)
+        # Check cache first
+        key = cache_key(req.job)
         if key in CACHE:
-            print(f"[CACHE] Hit for key: {key}")
-            print(f"[CACHE] Returning cached result: {json.dumps(CACHE[key], indent=2)}")
+            print(f"[CACHE] Hit for key: {key[:16]}...")
             return CACHE[key]
 
-        prompt = PROMPT_TEMPLATE.format(
-            resume=resume,
-            preferences=json.dumps(preferences),
-            job=req.job
-        )
+        # Load precomputed data
+        resume_kw = get_resume_keywords()
+        preferences = get_preferences()
 
-        print(f"[PROMPT] Total prompt length: {len(prompt)} chars")
+        if not resume_kw:
+            return {"error": "Resume not loaded. Call /reload first."}
 
+        # Step 1: Extract job keywords (instant)
+        job_kw = extract_keywords(req.job)
+        print(f"[KEYWORDS] Job keywords: {job_kw}")
+
+        # Step 2: Calculate match score (instant)
+        score, matched, gaps = calculate_match_score(resume_kw, job_kw, preferences)
+
+        # Determine fit level
+        if score >= 90:
+            level = "Strong Fit"
+        elif score >= 70:
+            level = "Good Fit"
+        elif score >= 50:
+            level = "Partial Fit"
+        else:
+            level = "Weak Fit"
+
+        print(f"[SCORE] {score}/100 ({level})")
+        print(f"[MATCH] Matched: {matched}")
+        print(f"[GAPS] Missing: {gaps}")
+
+        # Step 3: Use LLM only for verdict (short prompt = fast)
         try:
-            print(f"[OLLAMA] Sending request to {OLLAMA_HOST}...")
+            prompt = VERDICT_PROMPT.format(
+                score=score,
+                level=level,
+                matched=", ".join(matched[:8]) or "None",
+                gaps=", ".join(gaps[:5]) or "None"
+            )
+            print(f"[LLM] Prompt length: {len(prompt)} chars")
+
             r = requests.post(
                 f"{OLLAMA_HOST}/api/generate",
                 json={
@@ -178,40 +253,47 @@ Return JSON only:
                     "stream": False,
                     "temperature": 0.3,
                     "format": "json",
-                    "keep_alive": "30m"  # Keep model loaded for 30 mins
+                    "keep_alive": "30m"
                 },
-                timeout=120
+                timeout=60
             )
             r.raise_for_status()
             text = r.json().get("response", "")
-            print(f"[OLLAMA] Response status: {r.status_code}")
-            print(f"[OLLAMA] Raw response length: {len(text)} chars")
-            print(f"[OLLAMA] Raw response: {text}")
+            print(f"[LLM] Response: {text[:200]}...")
 
+            # Parse LLM response
             try:
-                parsed = json.loads(text)
-                print(f"[PARSE] Successfully parsed JSON")
-            except json.JSONDecodeError as je:
-                print(f"[PARSE] JSON decode error: {je}")
-                start = text.find("{")
-                end = text.rfind("}") + 1
-                if start != -1 and end != -1:
-                     parsed = json.loads(text[start:end])
-                     print(f"[PARSE] Extracted JSON from position {start} to {end}")
-                else:
-                     parsed = {"error": "invalid_json", "raw": text}
-                     print(f"[PARSE] Could not extract JSON, returning error")
+                llm_result = json.loads(text)
+            except:
+                llm_result = {"summary": f"Match score {score}% based on keyword analysis.", "verdict": level}
 
-            print(f"[OUTPUT] Final response: {json.dumps(parsed, indent=2)}")
-            print("=" * 60)
-
-            CACHE[key] = parsed
-            return parsed
+            # Combine precomputed + LLM results
+            result = {
+                "fit_score": score,
+                "fit_level": level,
+                "aligned_areas": matched,
+                "gaps": gaps,
+                "summary": llm_result.get("summary", f"Score: {score}%"),
+                "verdict": llm_result.get("verdict", level)
+            }
 
         except Exception as e:
-            print(f"[ERROR] Exception: {type(e).__name__}: {e}")
-            print("=" * 60)
-            raise HTTPException(status_code=500, detail=str(e))
+            print(f"[LLM-ERROR] {e} - Using precomputed results only")
+            # Fallback: return results without LLM verdict
+            result = {
+                "fit_score": score,
+                "fit_level": level,
+                "aligned_areas": matched,
+                "gaps": gaps,
+                "summary": f"Based on keyword matching: {len(matched)} skills matched, {len(gaps)} gaps identified.",
+                "verdict": f"{level} - {score}% match"
+            }
+
+        print(f"[OUTPUT] {json.dumps(result)}")
+        print("=" * 60)
+
+        CACHE[key] = result
+        return result
 
     @app.get("/health")
     def health():

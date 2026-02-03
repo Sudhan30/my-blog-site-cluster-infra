@@ -20,7 +20,7 @@ spec:
         - name: dockerhub-creds
       containers:
         - name: blog
-          image: docker.io/sudhan03/blog-site:blog-286d8db350f0d8e8169bf976350f8983037fea3a
+          image: docker.io/sudhan03/blog-site:blog-fceaea1
           imagePullPolicy: Always
           ports:
             - containerPort: 80
@@ -43,11 +43,3 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 3
             failureThreshold: 3
-          volumeMounts:
-            - name: nginx-conf
-              mountPath: /etc/nginx/conf.d/default.conf
-              subPath: default.conf
-      volumes:
-        - name: nginx-conf
-          configMap:
-            name: blog-nginx-conf

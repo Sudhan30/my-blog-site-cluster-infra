@@ -109,47 +109,16 @@ data:
         raw = job_part + resume_part + json.dumps(preferences or {})
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    PROMPT_TEMPLATE = """
-    You are a job fit evaluator for a professional portfolio website.
-    Your task is to evaluate how well the portfolio owner fits a job.
+    PROMPT_TEMPLATE = """Evaluate job fit. Score 0-100 (90+=strong, 70-89=good, 50-69=partial, <50=weak).
 
-    Be objective and evidence based.
-    Do not assume skills that are not written.
-    If data is missing, say unknown.
+RESUME: {resume}
 
-    Resume:
-    {resume}
+PREFS: {preferences}
 
-    Preferences:
-    {preferences}
+JOB: {job}
 
-    Job Description:
-    {job}
-
-    TASK
-    Compare the resume and preferences to the job.
-    Evaluate skills match, experience level match, domain match, role and career alignment.
-
-    SCORING
-    Give a score from 0 to 100.
-    90-100: strong fit
-    70-89: good fit
-    50-69: partial fit
-    <50: weak fit
-
-    OUTPUT
-    Return ONLY valid JSON.
-    {{
-    "fit_score": 0,
-    "fit_level": "",
-    "aligned_areas": [],
-    "gaps": [],
-    "summary": "",
-    "verdict": ""
-    }}
-
-    Keep summary under 80 words.
-    """
+Return JSON only:
+{{"fit_score":0,"fit_level":"","aligned_areas":[],"gaps":[],"summary":"","verdict":""}}"""
 
     @app.get("/reload")
     def reload_data():
@@ -204,7 +173,7 @@ data:
             r = requests.post(
                 f"{OLLAMA_HOST}/api/generate",
                 json={
-                    "model": "phi3:mini",
+                    "model": "gemma:2b",
                     "prompt": prompt,
                     "stream": False,
                     "temperature": 0.3,

@@ -43,6 +43,14 @@ Be objective and evidence based.
 Do not assume skills that are not written.
 If data is missing, say unknown.
 
+GUIDELINES FOR MATCHING:
+1. **Transferrable Skills**: Focus on underlying concepts and domain expertise rather than exact keyword matches.
+   - *Cloud Platforms*: Experience in one major provider (AWS, GCP, Azure) IS transferrable to others. (e.g. If job asks for AWS and candidate has GCP, this is a MATCH).
+   - *Languages/Frameworks*: Proficiency in comparable technologies implies adaptability (e.g. Java/C# or React/Vue).
+2. **Seniority & Experience**: Evaluate potential and scope, not just job titles.
+   - *Hierarchy*: "Staff", "Principal", or "Lead" titles indicate a level *above* "Senior". A Staff Engineer is fully qualified for a Senior role.
+   - *Experience*: High-quality experience in a related domain compensates for missing specific tool knowledge.
+
 Resume:
 {resume}
 

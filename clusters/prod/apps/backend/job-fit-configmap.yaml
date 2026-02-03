@@ -204,7 +204,7 @@ data:
             r = requests.post(
                 f"{OLLAMA_HOST}/api/generate",
                 json={
-                    "model": "gemma:2b",
+                    "model": "phi3:mini",
                     "prompt": prompt,
                     "stream": False,
                     "temperature": 0.3,

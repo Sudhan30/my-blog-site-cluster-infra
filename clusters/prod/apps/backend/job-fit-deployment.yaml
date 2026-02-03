@@ -16,26 +16,34 @@ spec:
       containers:
       - name: backend
         image: python:3.10-slim
-        # No imagePullPolicy: Never anymore, let it pull from Docker Hub
         command: ["/bin/sh", "-c"]
         args:
           - |
-            pip install fastapi uvicorn requests pydantic && 
+            pip install fastapi uvicorn requests pydantic PyPDF2 python-docx &&
             uvicorn main:app --host 0.0.0.0 --port 8000
         ports:
         - containerPort: 8000
         env:
         - name: OLLAMA_HOST
           value: "http://ollama-service:11434"
+        - name: PRIVATE_DATA_PATH
+          value: "/app/private"
         volumeMounts:
         - name: code-volume
           mountPath: /app/main.py
           subPath: main.py
+        - name: private-data
+          mountPath: /app/private
+          readOnly: true
         workingDir: /app
       volumes:
       - name: code-volume
         configMap:
           name: job-fit-backend-code
+      - name: private-data
+        hostPath:
+          path: /var/lib/job-fit-private
+          type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service

@@ -12,6 +12,7 @@ data:
     import json
     from fastapi.middleware.cors import CORSMiddleware
     import os
+    from pathlib import Path
 
     app = FastAPI()
 
@@ -26,16 +27,86 @@ data:
 
     CACHE = {}
     OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama-service:11434")
+    PRIVATE_DATA_PATH = Path(os.getenv("PRIVATE_DATA_PATH", "/app/private"))
+
+    # Load resume and preferences from server files (not from request)
+    def load_resume():
+        """Load resume from PDF, DOCX, or TXT file on server"""
+        resume_path = PRIVATE_DATA_PATH / "resume"
+
+        # Try PDF first
+        pdf_path = resume_path.with_suffix(".pdf")
+        if pdf_path.exists():
+            try:
+                import PyPDF2
+                with open(pdf_path, "rb") as f:
+                    reader = PyPDF2.PdfReader(f)
+                    text = ""
+                    for page in reader.pages:
+                        text += page.extract_text() + "\n"
+                print(f"[RESUME] Loaded from PDF: {pdf_path}")
+                return text.strip()
+            except Exception as e:
+                print(f"[RESUME] Error reading PDF: {e}")
+
+        # Try DOCX
+        docx_path = resume_path.with_suffix(".docx")
+        if docx_path.exists():
+            try:
+                from docx import Document
+                doc = Document(docx_path)
+                text = "\n".join([para.text for para in doc.paragraphs])
+                print(f"[RESUME] Loaded from DOCX: {docx_path}")
+                return text.strip()
+            except Exception as e:
+                print(f"[RESUME] Error reading DOCX: {e}")
+
+        # Try plain text
+        txt_path = resume_path.with_suffix(".txt")
+        if txt_path.exists():
+            text = txt_path.read_text()
+            print(f"[RESUME] Loaded from TXT: {txt_path}")
+            return text.strip()
+
+        print(f"[RESUME] No resume file found in {PRIVATE_DATA_PATH}")
+        return None
+
+    def load_preferences():
+        """Load preferences from JSON file on server"""
+        prefs_path = PRIVATE_DATA_PATH / "preferences.json"
+        if prefs_path.exists():
+            try:
+                prefs = json.loads(prefs_path.read_text())
+                print(f"[PREFS] Loaded from: {prefs_path}")
+                return prefs
+            except Exception as e:
+                print(f"[PREFS] Error reading preferences: {e}")
+        print(f"[PREFS] No preferences file found at {prefs_path}")
+        return {}
+
+    # Cache the loaded data
+    _resume_cache = None
+    _prefs_cache = None
+
+    def get_resume():
+        global _resume_cache
+        if _resume_cache is None:
+            _resume_cache = load_resume()
+        return _resume_cache
+
+    def get_preferences():
+        global _prefs_cache
+        if _prefs_cache is None:
+            _prefs_cache = load_preferences()
+        return _prefs_cache
 
     class FitRequest(BaseModel):
-        resume: str = None
-        preferences: dict = None
-        job: str
+        job: str  # Only job description is required from frontend
 
-    def cache_key(data: FitRequest):
-        resume_part = data.resume[:50] if data.resume else "no-resume" 
-        job_part = data.job[:50] 
-        raw = resume_part + json.dumps(data.preferences or {}) + data.job
+    def cache_key(job: str, resume: str, preferences: dict):
+        job_part = job[:100] if job else ""
+        resume_part = resume[:100] if resume else ""
+        raw = job_part + resume_part + json.dumps(preferences or {})
         return hashlib.sha256(raw.encode()).hexdigest()
 
     PROMPT_TEMPLATE = """
@@ -80,29 +151,49 @@ data:
     Keep summary under 80 words.
     """
 
+    @app.get("/reload")
+    def reload_data():
+        """Reload resume and preferences from files"""
+        global _resume_cache, _prefs_cache
+        _resume_cache = None
+        _prefs_cache = None
+        resume = get_resume()
+        prefs = get_preferences()
+        return {
+            "status": "reloaded",
+            "resume_loaded": resume is not None,
+            "resume_length": len(resume) if resume else 0,
+            "preferences_loaded": bool(prefs)
+        }
+
     @app.post("/job-fit")
     def job_fit(req: FitRequest):
         print("=" * 60)
         print("[INPUT] Received job-fit request")
-        print(f"[INPUT] Resume length: {len(req.resume) if req.resume else 0} chars")
+
+        # Load resume and preferences from server files
+        resume = get_resume()
+        preferences = get_preferences()
+
+        print(f"[INPUT] Resume length: {len(resume) if resume else 0} chars")
         print(f"[INPUT] Job length: {len(req.job) if req.job else 0} chars")
-        print(f"[INPUT] Preferences: {json.dumps(req.preferences or {}, indent=2)}")
+        print(f"[INPUT] Preferences: {json.dumps(preferences, indent=2)}")
         print(f"[INPUT] Job (first 500 chars): {req.job[:500] if req.job else 'None'}...")
         print("=" * 60)
 
-        if not req.resume:
-           print("[ERROR] No resume provided")
-           return {"error": "Resume text is required"}
+        if not resume:
+           print("[ERROR] No resume found on server")
+           return {"error": "Resume file not found on server. Contact admin."}
 
-        key = cache_key(req)
+        key = cache_key(req.job, resume, preferences)
         if key in CACHE:
             print(f"[CACHE] Hit for key: {key}")
             print(f"[CACHE] Returning cached result: {json.dumps(CACHE[key], indent=2)}")
             return CACHE[key]
 
         prompt = PROMPT_TEMPLATE.format(
-            resume=req.resume,
-            preferences=json.dumps(req.preferences or {}),
+            resume=resume,
+            preferences=json.dumps(preferences),
             job=req.job
         )
 

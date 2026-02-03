@@ -49,14 +49,22 @@ GUIDELINES FOR MATCHING:
    - *Languages/Frameworks*: Proficiency in comparable technologies implies adaptability (e.g. Java/C# or React/Vue).
 2. **Seniority & Experience**: Evaluate potential and scope, not just job titles.
    - *Hierarchy*: "Staff", "Principal", or "Lead" titles indicate a level *above* "Senior". A Staff Engineer is fully qualified for a Senior role.
-3. **Domain Equivalence (Synonyms)**:
-   - *Data Warehouse*: BigQuery, Snowflake, Redshift are interchangeable. Experience in ONE satisfies the requirement for ANY.
-   - *CI/CD*: GitHub Actions, Jenkins, Cloud Build, GitLab CI are transferrable.
-   - *ETL/ELT*: Tools like Airflow, dbt, or "Data Pipelines" experience imply mastery of ELT concepts.
-   - *Orchestration*: Airflow, Dagster, Prefect, Kubeflow are interchangeable.
+GUIDELINES FOR INTELLIGENT MATCHING (NO KEYWORD MATCHING):
 
-4. **Negative Scoring**:
-   - Do NOT penalize for missing specific tools if the candidate has **Strong** experience in a competing tool in the same category (e.g. Missing "Redshift" but has "BigQuery" -> NO penalty).
+1. **Category-Based Evaluation**:
+   - For every required skill, determine its *functional category* (e.g., "Cloud Provider", "Data Warehouse", "CI/CD").
+   - Check if the candidate has strong expertise in *any equivalent tool* within that same category.
+   - **Rule**: Expertise in ONE major tool in a category = Qualified for ALL tools in that category.
+   - *Example*: GCP experience satisfies an AWS requirement. Jenkins experience satisfies a GitHub Actions requirement.
+
+2. **Concept Over Syntax**:
+   - Look for evidence of *concepts* rather than specific tool names.
+   - "Data Pipelines" or "ETL" in a resume satisfies requirements for specific tools like "Airflow" or "dbt".
+   - "Infrastructure as Code" satisfies Terraform or Pulumi.
+
+3. **Seniority & Adaptability**:
+   - If the candidate is **Senior/Staff+**, assume high adaptability.
+   - Do NOT mark specific tools as gaps if the candidate has years of experience in the requested *domain* (e.g. Backend, Data, DevOps).
 
 
 Resume:

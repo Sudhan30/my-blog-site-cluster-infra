@@ -15,17 +15,29 @@ spec:
     spec:
       containers:
       - name: ollama
-        image: ollama/ollama:latest
+        image: ollama/ollama:rocm
         ports:
         - containerPort: 11434
+        securityContext:
+          privileged: true
         volumeMounts:
         - name: ollama-storage
           mountPath: /root/.ollama
+        - name: dev-kfd
+          mountPath: /dev/kfd
+        - name: dev-dri
+          mountPath: /dev/dri
       volumes:
       - name: ollama-storage
         hostPath:
           path: /var/lib/ollama
           type: DirectoryOrCreate
+      - name: dev-kfd
+        hostPath:
+          path: /dev/kfd
+      - name: dev-dri
+        hostPath:
+          path: /dev/dri
 ---
 apiVersion: v1
 kind: Service

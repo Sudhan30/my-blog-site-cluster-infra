@@ -16,14 +16,7 @@ spec:
     - host: blog.sudharsana.dev
       http:
         paths:
-          # Backend API routes - higher priority
-          - path: /api
-            pathType: Prefix
-            backend:
-              service:
-                name: blog-backend-service
-                port:
-                  number: 3001
+
           # Frontend routes - lower priority
           - path: /
             pathType: Prefix

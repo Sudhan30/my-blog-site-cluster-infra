@@ -37,6 +37,14 @@ spec:
             secretKeyRef:
               name: brave-search-secret
               key: api-key
+        - name: SLACK_WEBHOOK_URL
+          valueFrom:
+            secretKeyRef:
+              name: slack-webhook-secret
+              key: webhook-url
+              optional: true
+        - name: APP_URL
+          value: "https://chat.sudharsana.dev"
         resources:
           requests:
             cpu: 100m

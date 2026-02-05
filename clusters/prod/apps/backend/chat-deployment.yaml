@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-app
+  namespace: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chat-app
+  template:
+    metadata:
+      labels:
+        app: chat-app
+    spec:
+      containers:
+      - name: chat
+        image: oven/bun:1-alpine
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            cd /app &&
+            bun add hono postgres &&
+            bun run server.ts
+        ports:
+        - containerPort: 3000
+        env:
+        - name: DATABASE_URL
+          value: "postgres://blog_user:blog_password@postgres-service:5432/blog_db"
+        - name: OLLAMA_HOST
+          value: "http://ollama-service:11434"
+        - name: OLLAMA_MODEL
+          value: "gemma3:12b"
+        - name: PORT
+          value: "3000"
+        volumeMounts:
+        - name: code-volume
+          mountPath: /app/server.ts
+          subPath: server.ts
+        workingDir: /app
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: code-volume
+        configMap:
+          name: chat-backend-code
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-app-service
+  namespace: web
+spec:
+  selector:
+    app: chat-app
+  ports:
+  - protocol: TCP
+    port: 3000
+    targetPort: 3000
+  type: ClusterIP

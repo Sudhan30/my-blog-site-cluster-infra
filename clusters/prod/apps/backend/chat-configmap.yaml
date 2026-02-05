@@ -1,0 +1,558 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-backend-code
+  namespace: web
+data:
+  server.ts: |
+    /**
+     * Chat Application for chat.sudharsana.dev
+     * Bun + Hono + PostgreSQL + Ollama
+     */
+    import { Hono } from "hono";
+    import { cors } from "hono/cors";
+    import { streamSSE } from "hono/streaming";
+    import postgres from "postgres";
+
+    // ============================================
+    // Database Connection
+    // ============================================
+    const DATABASE_URL = process.env.DATABASE_URL || "postgres://blog_user:blog_password@postgres-service:5432/blog_db";
+    const sql = postgres(DATABASE_URL, { max: 20, idle_timeout: 20 });
+
+    // ============================================
+    // Ollama Configuration
+    // ============================================
+    const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://ollama-service:11434";
+    const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "gemma3:12b";
+
+    // ============================================
+    // Types
+    // ============================================
+    interface User {
+      id: string;
+      email: string;
+      password_hash: string;
+      name: string | null;
+      approved: boolean;
+    }
+
+    interface ChatMessage {
+      role: "user" | "assistant" | "system";
+      content: string;
+    }
+
+    // ============================================
+    // Database Operations
+    // ============================================
+    async function createUser(email: string, passwordHash: string, name?: string) {
+      const [user] = await sql`
+        INSERT INTO chat_users (email, password_hash, name)
+        VALUES (${email}, ${passwordHash}, ${name || null})
+        RETURNING *
+      `;
+      return user;
+    }
+
+    async function getUserByEmail(email: string) {
+      const [user] = await sql`SELECT * FROM chat_users WHERE email = ${email} LIMIT 1`;
+      return user || null;
+    }
+
+    async function getUserById(id: string) {
+      const [user] = await sql`SELECT * FROM chat_users WHERE id = ${id} LIMIT 1`;
+      return user || null;
+    }
+
+    async function createAuthToken(userId: string, token: string, expiresAt: Date) {
+      await sql`
+        INSERT INTO chat_auth_tokens (user_id, token, expires_at)
+        VALUES (${userId}, ${token}, ${expiresAt})
+      `;
+    }
+
+    async function getAuthToken(token: string) {
+      const [result] = await sql`
+        SELECT at.*, u.id as uid, u.email, u.name, u.approved
+        FROM chat_auth_tokens at
+        JOIN chat_users u ON at.user_id = u.id
+        WHERE at.token = ${token} AND at.expires_at > NOW()
+        LIMIT 1
+      `;
+      return result || null;
+    }
+
+    async function deleteAuthToken(token: string) {
+      await sql`DELETE FROM chat_auth_tokens WHERE token = ${token}`;
+    }
+
+    async function createSession(userId: string, title = "New Chat") {
+      const [session] = await sql`
+        INSERT INTO chat_sessions (user_id, title)
+        VALUES (${userId}, ${title})
+        RETURNING *
+      `;
+      return session;
+    }
+
+    async function getSessionById(sessionId: string) {
+      const [session] = await sql`SELECT * FROM chat_sessions WHERE id = ${sessionId} LIMIT 1`;
+      return session || null;
+    }
+
+    async function getUserSessions(userId: string) {
+      return sql`
+        SELECT * FROM chat_sessions
+        WHERE user_id = ${userId}
+        ORDER BY updated_at DESC
+        LIMIT 50
+      `;
+    }
+
+    async function updateSessionTitle(sessionId: string, title: string) {
+      await sql`UPDATE chat_sessions SET title = ${title}, updated_at = NOW() WHERE id = ${sessionId}`;
+    }
+
+    async function deleteSession(sessionId: string) {
+      await sql`DELETE FROM chat_sessions WHERE id = ${sessionId}`;
+    }
+
+    async function createMessage(sessionId: string, role: string, content: string) {
+      const [message] = await sql`
+        INSERT INTO chat_messages (session_id, role, content)
+        VALUES (${sessionId}, ${role}, ${content})
+        RETURNING *
+      `;
+      await sql`UPDATE chat_sessions SET updated_at = NOW() WHERE id = ${sessionId}`;
+      return message;
+    }
+
+    async function getSessionMessages(sessionId: string, limit = 10) {
+      return sql`
+        SELECT * FROM (
+          SELECT * FROM chat_messages
+          WHERE session_id = ${sessionId}
+          ORDER BY created_at DESC
+          LIMIT ${limit}
+        ) sub
+        ORDER BY created_at ASC
+      `;
+    }
+
+    // ============================================
+    // Auth Utilities
+    // ============================================
+    async function hashPassword(password: string): Promise<string> {
+      return Bun.password.hash(password, { algorithm: "argon2id" });
+    }
+
+    async function verifyPassword(password: string, hash: string): Promise<boolean> {
+      return Bun.password.verify(password, hash);
+    }
+
+    function generateToken(): string {
+      const bytes = crypto.getRandomValues(new Uint8Array(32));
+      return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    function extractToken(cookie: string | null): string | null {
+      if (!cookie) return null;
+      const match = cookie.match(/auth_token=([^;]+)/);
+      return match ? match[1] : null;
+    }
+
+    function createCookie(token: string): string {
+      return `auth_token=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=604800`;
+    }
+
+    // ============================================
+    // Ollama Streaming
+    // ============================================
+    async function* streamChat(messages: ChatMessage[]) {
+      const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+          messages,
+          stream: true,
+          options: { temperature: 0.7, num_ctx: 4096 },
+          keep_alive: "5m",
+        }),
+      });
+
+      if (!response.ok) throw new Error(`Ollama error: ${response.status}`);
+      if (!response.body) throw new Error("No response body");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const chunk = JSON.parse(line);
+            if (chunk.message?.content) yield chunk.message.content;
+            if (chunk.done) return;
+          } catch {}
+        }
+      }
+    }
+
+    async function generateTitle(message: string): Promise<string> {
+      const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: OLLAMA_MODEL,
+          messages: [
+            { role: "system", content: "Generate a very short title (3-5 words max). Reply with ONLY the title." },
+            { role: "user", content: message },
+          ],
+          stream: false,
+          options: { temperature: 0.3 },
+        }),
+      });
+      const data = await response.json();
+      return (data.message?.content || "New Chat").trim().slice(0, 50);
+    }
+
+    // ============================================
+    // HTML Templates
+    // ============================================
+    const layout = (content: string, title = "Chat") => `
+    <!DOCTYPE html>
+    <html lang="en" class="dark">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${title} | chat.sudharsana.dev</title>
+      <script src="https://cdn.tailwindcss.com"></script>
+      <script>
+        tailwind.config = {
+          darkMode: 'class',
+          theme: { extend: { colors: { dark: { 50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',700:'#334155',800:'#1e293b',900:'#0f172a',950:'#020617' }}}}
+        }
+      </script>
+      <style>
+        @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.5} }
+        .typing-indicator span { animation: pulse-dot 1.4s infinite; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+      </style>
+    </head>
+    <body class="bg-dark-950 text-dark-100 min-h-screen">${content}</body>
+    </html>`;
+
+    const loginPage = (error = "") => layout(`
+      <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-dark-900 rounded-2xl p-8 border border-dark-800">
+          <h1 class="text-3xl font-bold text-center mb-8">Welcome</h1>
+          ${error ? `<div class="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6">${error}</div>` : ""}
+          <form method="POST" action="/login" class="space-y-6">
+            <div>
+              <label class="block text-sm font-medium text-dark-200 mb-2">Email</label>
+              <input type="email" name="email" required class="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-dark-200 mb-2">Password</label>
+              <input type="password" name="password" required class="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg">Sign In</button>
+          </form>
+          <p class="text-center text-dark-200 mt-6">Don't have an account? <a href="/signup" class="text-blue-400">Sign up</a></p>
+        </div>
+      </div>
+    `, "Login");
+
+    const signupPage = (error = "") => layout(`
+      <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-dark-900 rounded-2xl p-8 border border-dark-800">
+          <h1 class="text-3xl font-bold text-center mb-8">Create Account</h1>
+          ${error ? `<div class="bg-red-500/10 border border-red-500/20 text-red-400 px-4 py-3 rounded-lg mb-6">${error}</div>` : ""}
+          <form method="POST" action="/signup" class="space-y-6">
+            <div>
+              <label class="block text-sm font-medium text-dark-200 mb-2">Name</label>
+              <input type="text" name="name" class="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-dark-200 mb-2">Email</label>
+              <input type="email" name="email" required class="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-dark-200 mb-2">Password</label>
+              <input type="password" name="password" required minlength="8" class="w-full px-4 py-3 bg-dark-800 border border-dark-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <button type="submit" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg">Create Account</button>
+          </form>
+          <p class="text-center text-dark-200 mt-6">Already have an account? <a href="/login" class="text-blue-400">Sign in</a></p>
+        </div>
+      </div>
+    `, "Sign Up");
+
+    const pendingPage = (email: string) => layout(`
+      <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-dark-900 rounded-2xl p-8 border border-dark-800 text-center">
+          <div class="w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <h1 class="text-2xl font-bold mb-2">Pending Approval</h1>
+          <p class="text-dark-200 mb-4">Your account (${email}) is awaiting approval.</p>
+          <a href="/logout" class="text-blue-400">Sign out</a>
+        </div>
+      </div>
+    `, "Pending");
+
+    const chatPage = (user: any, sessions: any[], sessionId?: string) => layout(`
+      <div class="flex h-screen">
+        <div class="w-64 bg-dark-900 border-r border-dark-800 flex flex-col">
+          <div class="p-4 border-b border-dark-800">
+            <button onclick="newSession()" class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center justify-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+              New Chat
+            </button>
+          </div>
+          <div class="flex-1 overflow-y-auto p-2">
+            ${sessions.map(s => `<a href="/chat/${s.id}" class="block p-3 rounded-lg mb-1 truncate ${s.id === sessionId ? 'bg-dark-800 text-white' : 'text-dark-200 hover:bg-dark-800'}">${s.title}</a>`).join("")}
+          </div>
+          <div class="p-4 border-t border-dark-800 flex items-center justify-between">
+            <span class="text-sm text-dark-200 truncate">${user.name || user.email}</span>
+            <a href="/logout" class="text-dark-200 hover:text-white"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg></a>
+          </div>
+        </div>
+        <div class="flex-1 flex flex-col">
+          <div id="messages" class="flex-1 overflow-y-auto p-6 space-y-6">
+            ${!sessionId ? `<div class="h-full flex items-center justify-center"><div class="text-center"><h2 class="text-2xl font-bold mb-2">Welcome to Chat</h2><p class="text-dark-200">Start a new conversation.</p></div></div>` : `<div id="msg-container" class="space-y-6"></div><div id="typing" class="hidden"><div class="flex items-start gap-3"><div class="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-sm font-bold">AI</div><div class="bg-dark-800 rounded-2xl rounded-tl-none px-4 py-3"><div class="typing-indicator flex gap-1"><span class="w-2 h-2 bg-dark-200 rounded-full"></span><span class="w-2 h-2 bg-dark-200 rounded-full"></span><span class="w-2 h-2 bg-dark-200 rounded-full"></span></div></div></div></div>`}
+          </div>
+          ${sessionId ? `<div class="p-4 border-t border-dark-800"><form id="chat-form" class="flex gap-4"><input type="hidden" id="sid" value="${sessionId}"/><textarea id="msg-input" placeholder="Type your message..." rows="1" class="flex-1 px-4 py-3 bg-dark-800 border border-dark-700 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();document.getElementById('chat-form').dispatchEvent(new Event('submit'))}"></textarea><button type="submit" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>Send</button></form></div>` : ""}
+        </div>
+      </div>
+      <script>
+        const sid = document.getElementById('sid')?.value;
+        const container = document.getElementById('msg-container');
+        const typing = document.getElementById('typing');
+        const msgs = document.getElementById('messages');
+        if(sid) loadMsgs();
+        async function loadMsgs(){
+          const r = await fetch('/api/sessions/'+sid+'/messages');
+          const m = await r.json();
+          container.innerHTML = '';
+          m.forEach(x => addMsg(x.role, x.content));
+          scroll();
+        }
+        function addMsg(role, content){
+          const isU = role === 'user';
+          container.insertAdjacentHTML('beforeend', \`<div class="flex items-start gap-3 \${isU?'flex-row-reverse':''}"><div class="w-8 h-8 rounded-full \${isU?'bg-blue-600':'bg-green-600'} flex items-center justify-center text-sm font-bold">\${isU?'You':'AI'}</div><div class="max-w-[70%] bg-dark-800 rounded-2xl \${isU?'rounded-tr-none':'rounded-tl-none'} px-4 py-3"><div class="whitespace-pre-wrap">\${esc(content)}</div></div></div>\`);
+        }
+        function esc(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+        function scroll(){msgs.scrollTop=msgs.scrollHeight;}
+        document.getElementById('chat-form')?.addEventListener('submit', async e=>{
+          e.preventDefault();
+          const inp = document.getElementById('msg-input');
+          const m = inp.value.trim();
+          if(!m) return;
+          addMsg('user', m);
+          inp.value = '';
+          scroll();
+          typing.classList.remove('hidden');
+          scroll();
+          try {
+            const res = await fetch('/api/chat', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({sessionId:sid,message:m})});
+            const reader = res.body.getReader();
+            const decoder = new TextDecoder();
+            typing.classList.add('hidden');
+            const div = document.createElement('div');
+            div.className = 'flex items-start gap-3';
+            div.innerHTML = '<div class="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-sm font-bold">AI</div><div class="max-w-[70%] bg-dark-800 rounded-2xl rounded-tl-none px-4 py-3"><div class="content whitespace-pre-wrap"></div></div>';
+            container.appendChild(div);
+            const cd = div.querySelector('.content');
+            let full = '';
+            while(true){
+              const{done,value}=await reader.read();
+              if(done)break;
+              const txt = decoder.decode(value);
+              for(const line of txt.split('\\n')){
+                if(line.startsWith('data: ')){
+                  try{const d=JSON.parse(line.slice(6));if(d.content){full+=d.content;cd.textContent=full;scroll();}}catch{}
+                }
+              }
+            }
+          } catch(e){ typing.classList.add('hidden'); console.error(e); }
+        });
+        async function newSession(){
+          const r = await fetch('/api/sessions', {method:'POST'});
+          const{sessionId}=await r.json();
+          window.location.href='/chat/'+sessionId;
+        }
+      </script>
+    `, "Chat");
+
+    // ============================================
+    // Hono App
+    // ============================================
+    const app = new Hono();
+    app.use("*", cors({ origin: ["https://chat.sudharsana.dev"], credentials: true }));
+
+    // Auth middleware
+    const auth = async (c: any, next: () => Promise<void>) => {
+      const token = extractToken(c.req.header("Cookie"));
+      if (!token) return c.redirect("/login");
+      const result = await getAuthToken(token);
+      if (!result) return c.redirect("/login");
+      if (!result.approved) return c.html(pendingPage(result.email), 403);
+      c.set("user", { id: result.uid, email: result.email, name: result.name, approved: result.approved });
+      await next();
+    };
+
+    // Public routes
+    app.get("/", c => c.redirect("/chat"));
+    app.get("/login", c => c.html(loginPage()));
+    app.post("/login", async c => {
+      const { email, password } = await c.req.parseBody();
+      const user = await getUserByEmail(email as string);
+      if (!user || !(await verifyPassword(password as string, user.password_hash))) {
+        return c.html(loginPage("Invalid email or password"));
+      }
+      const token = generateToken();
+      await createAuthToken(user.id, token, new Date(Date.now() + 7*24*60*60*1000));
+      c.header("Set-Cookie", createCookie(token));
+      return c.redirect("/chat");
+    });
+    app.get("/signup", c => c.html(signupPage()));
+    app.post("/signup", async c => {
+      const { email, password, name } = await c.req.parseBody();
+      if (await getUserByEmail(email as string)) return c.html(signupPage("Email already registered"));
+      if ((password as string).length < 8) return c.html(signupPage("Password must be 8+ characters"));
+      const hash = await hashPassword(password as string);
+      const user = await createUser(email as string, hash, name as string);
+      const token = generateToken();
+      await createAuthToken(user.id, token, new Date(Date.now() + 7*24*60*60*1000));
+      c.header("Set-Cookie", createCookie(token));
+      return c.redirect("/chat");
+    });
+    app.get("/logout", async c => {
+      const token = extractToken(c.req.header("Cookie"));
+      if (token) await deleteAuthToken(token);
+      c.header("Set-Cookie", "auth_token=; Path=/; HttpOnly; Max-Age=0");
+      return c.redirect("/login");
+    });
+
+    // Protected routes
+    app.get("/chat", auth, async c => {
+      const user = c.get("user");
+      const sessions = await getUserSessions(user.id);
+      return c.html(chatPage(user, sessions));
+    });
+    app.get("/chat/:id", auth, async c => {
+      const user = c.get("user");
+      const sessionId = c.req.param("id");
+      const session = await getSessionById(sessionId);
+      if (!session || session.user_id !== user.id) return c.redirect("/chat");
+      const sessions = await getUserSessions(user.id);
+      return c.html(chatPage(user, sessions, sessionId));
+    });
+
+    // API routes
+    app.post("/api/sessions", auth, async c => {
+      const user = c.get("user");
+      const session = await createSession(user.id);
+      return c.json({ sessionId: session.id });
+    });
+    app.get("/api/sessions/:id/messages", auth, async c => {
+      const user = c.get("user");
+      const sessionId = c.req.param("id");
+      const session = await getSessionById(sessionId);
+      if (!session || session.user_id !== user.id) return c.json({ error: "Not found" }, 404);
+      const messages = await getSessionMessages(sessionId, 50);
+      return c.json(messages.map((m: any) => ({ role: m.role, content: m.content })));
+    });
+    app.post("/api/chat", auth, async c => {
+      const user = c.get("user");
+      const { sessionId, message } = await c.req.json();
+      const session = await getSessionById(sessionId);
+      if (!session || session.user_id !== user.id) return c.json({ error: "Invalid session" }, 403);
+      await createMessage(sessionId, "user", message);
+      const history = await getSessionMessages(sessionId, 10);
+      const messages: ChatMessage[] = [
+        { role: "system", content: `You are a helpful AI assistant. User: ${user.name || "there"}` },
+        ...history.map((m: any) => ({ role: m.role as "user"|"assistant", content: m.content })),
+      ];
+      if (history.length <= 1) generateTitle(message).then(t => updateSessionTitle(sessionId, t));
+      return streamSSE(c, async stream => {
+        let full = "";
+        try {
+          for await (const chunk of streamChat(messages)) {
+            full += chunk;
+            await stream.writeSSE({ data: JSON.stringify({ content: chunk, done: false }) });
+          }
+          await createMessage(sessionId, "assistant", full);
+          await stream.writeSSE({ data: JSON.stringify({ content: "", done: true }) });
+        } catch (e) {
+          await stream.writeSSE({ data: JSON.stringify({ error: String(e), done: true }) });
+        }
+      });
+    });
+    app.get("/health", async c => {
+      try { await sql`SELECT 1`; return c.json({ status: "healthy" }); }
+      catch { return c.json({ status: "unhealthy" }, 500); }
+    });
+
+    console.log("🚀 Chat server starting on port 3000");
+    export default { port: 3000, fetch: app.fetch };
+
+  db-init.sql: |
+    -- Chat Application Tables
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    CREATE TABLE IF NOT EXISTS chat_users (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        name VARCHAR(100),
+        approved BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_sessions (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES chat_users(id) ON DELETE CASCADE,
+        title VARCHAR(255) DEFAULT 'New Chat',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_messages (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        session_id UUID NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+        role VARCHAR(10) NOT NULL CHECK (role IN ('user', 'assistant')),
+        content TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS chat_auth_tokens (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        user_id UUID NOT NULL REFERENCES chat_users(id) ON DELETE CASCADE,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    );
+
+    -- Indexes
+    CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages(session_id);
+    CREATE INDEX IF NOT EXISTS idx_chat_auth_tokens_token ON chat_auth_tokens(token);
+    CREATE INDEX IF NOT EXISTS idx_chat_users_email ON chat_users(email);
+
+    -- Admin: Approve user
+    -- UPDATE chat_users SET approved = true WHERE email = 'user@example.com';

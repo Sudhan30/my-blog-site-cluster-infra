@@ -32,6 +32,11 @@ spec:
           value: "3000"
         - name: NODE_ENV
           value: "production"
+        - name: BRAVE_SEARCH_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: brave-search-secret
+              key: api-key
         resources:
           requests:
             cpu: 100m

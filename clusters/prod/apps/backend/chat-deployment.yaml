@@ -13,6 +13,8 @@ spec:
       labels:
         app: chat-app
     spec:
+      imagePullSecrets:
+      - name: dockerhub-creds
       containers:
       - name: chat
         image: docker.io/sudhan03/chat-sudharsana:latest

@@ -18,7 +18,6 @@ resources:
   - job-fit-configmap.yaml
   - job-fit-deployment.yaml
   - ollama-deployment.yaml
-  # Chat application
-  - chat-configmap.yaml
+  # Chat application (Docker image from CI/CD)
   - chat-deployment.yaml
   - chat-ingress.yaml

@@ -23,7 +23,7 @@ spec:
         - containerPort: 3000
         env:
         - name: DATABASE_URL
-          value: "postgres://blog_user:blog_password@postgres-service:5432/blog_db"
+          value: "postgresql://blog_user:piVdLYWqbtZyfWo2VkcY2QFC9lVjXbde@postgres-service:5432/blog_db?sslmode=disable"
         - name: OLLAMA_HOST
           value: "http://ollama-service:11434"
         - name: OLLAMA_MODEL

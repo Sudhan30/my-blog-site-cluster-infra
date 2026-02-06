@@ -37,11 +37,13 @@ spec:
             secretKeyRef:
               name: brave-search-secret
               key: api-key
-        - name: SLACK_WEBHOOK_URL
+        - name: GOTIFY_URL
+          value: "http://gotify-service:80"
+        - name: GOTIFY_TOKEN
           valueFrom:
             secretKeyRef:
-              name: slack-webhook-secret
-              key: webhook-url
+              name: gotify-secret
+              key: app-token
               optional: true
         - name: APP_URL
           value: "https://chat.sudharsana.dev"

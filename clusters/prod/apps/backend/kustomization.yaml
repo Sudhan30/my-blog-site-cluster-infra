@@ -21,3 +21,6 @@ resources:
   # Chat application (Docker image from CI/CD)
   - chat-deployment.yaml
   - chat-ingress.yaml
+  # Gotify notification server
+  - gotify-deployment.yaml
+  - gotify-ingress.yaml

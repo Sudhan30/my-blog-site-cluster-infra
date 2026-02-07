@@ -140,7 +140,7 @@ metadata:
     traefik.ingress.kubernetes.io/router.entrypoints: web
 spec:
   rules:
-    - host: dagster.suddu.duckdns.org
+    - host: dagster-suddu.duckdns.org
       http:
         paths:
           - path: /

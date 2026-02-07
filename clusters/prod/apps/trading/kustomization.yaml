@@ -12,6 +12,4 @@ resources:
   - deployment-order-executor.yaml
   - deployment-portfolio-tracker.yaml
   - data-integrity-deployment.yaml
-  - deployment-dagster.yaml
-  - rbac-dagster.yaml
-  - configmap-dagster.yaml
+

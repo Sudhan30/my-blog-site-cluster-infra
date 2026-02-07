@@ -66,9 +66,10 @@ data:
           - name: models
             mount_path: /app/models
 
-        # Delete completed run pods immediately (logs are stored in PVC)
-        job_spec_config:
-          ttl_seconds_after_finished: 0
+        # Delete completed run pods after 5 minutes
+        run_k8s_config:
+          job_spec_config:
+            ttl_seconds_after_finished: 300
 
     # Storage uses TimescaleDB in trading namespace
     storage:

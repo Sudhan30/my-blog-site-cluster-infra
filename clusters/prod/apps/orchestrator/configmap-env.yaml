@@ -1,0 +1,30 @@
+---
+# Environment configuration for the unified orchestrator
+# Contains connection strings for trading, blog, and external services
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: orchestrator-env
+  namespace: orchestrator
+  labels:
+    app: dagster
+    app.kubernetes.io/part-of: unified-orchestrator
+data:
+  # Trading database connection (individual vars for DatabaseConnection class)
+  # Cross-namespace DNS: <service>.<namespace>.svc.cluster.local
+  DB_HOST: "timescaledb.trading.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "trading_db"
+
+  # Blog database (PostgreSQL in web namespace)
+  BLOG_DATABASE_URL: "postgresql://blog_user:piVdLYWqbtZyfWo2VkcY2QFC9lVjXbde@postgres-service.web.svc.cluster.local:5432/blog_db"
+
+  # Ollama LLM service (in web namespace)
+  OLLAMA_HOST: "http://ollama-service.web.svc.cluster.local:11434"
+
+  # Model storage path (mounted via PVC)
+  MODEL_PATH: "/app/models"
+
+  # Python path
+  PYTHONPATH: "/app"
+  PYTHONUNBUFFERED: "1"

@@ -1,0 +1,152 @@
+---
+# Dagster Deployment: Webserver + Daemon
+# Unified orchestrator for trading and blog jobs
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dagster
+  namespace: orchestrator
+  labels:
+    app: dagster
+    app.kubernetes.io/name: dagster
+    app.kubernetes.io/part-of: unified-orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dagster
+  template:
+    metadata:
+      labels:
+        app: dagster
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-creds
+      serviceAccountName: dagster
+      containers:
+        # 1. Webserver (UI)
+        - name: dagster-webserver
+          image: docker.io/sudhan03/orchestrator:latest
+          imagePullPolicy: Always
+          command: ["dagster-webserver", "-h", "0.0.0.0", "-p", "3000", "-f", "orchestrator/__init__.py"]
+          ports:
+            - containerPort: 3000
+              name: http
+          env:
+            - name: DAGSTER_HOME
+              value: /app/dagster_home
+          envFrom:
+            - configMapRef:
+                name: orchestrator-env
+            - secretRef:
+                name: orchestrator-secrets
+          volumeMounts:
+            - name: dagster-instance
+              mountPath: /app/dagster_home/dagster.yaml
+              subPath: dagster.yaml
+            - name: dagster-logs
+              mountPath: /opt/dagster/logs
+            - name: models
+              mountPath: /app/models
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          readinessProbe:
+            httpGet:
+              path: /server_info
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /server_info
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+
+        # 2. Daemon (Scheduler & Run Coordinator)
+        - name: dagster-daemon
+          image: docker.io/sudhan03/orchestrator:latest
+          imagePullPolicy: Always
+          command: ["dagster-daemon", "run", "-f", "orchestrator/__init__.py"]
+          env:
+            - name: DAGSTER_HOME
+              value: /app/dagster_home
+          envFrom:
+            - configMapRef:
+                name: orchestrator-env
+            - secretRef:
+                name: orchestrator-secrets
+          volumeMounts:
+            - name: dagster-instance
+              mountPath: /app/dagster_home/dagster.yaml
+              subPath: dagster.yaml
+            - name: dagster-logs
+              mountPath: /opt/dagster/logs
+            - name: models
+              mountPath: /app/models
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+      volumes:
+        - name: dagster-instance
+          configMap:
+            name: dagster-instance
+        - name: dagster-logs
+          persistentVolumeClaim:
+            claimName: dagster-logs-pvc
+        - name: models
+          persistentVolumeClaim:
+            claimName: models-pvc
+---
+# Service for Dagster Webserver
+apiVersion: v1
+kind: Service
+metadata:
+  name: dagster
+  namespace: orchestrator
+  labels:
+    app: dagster
+    app.kubernetes.io/part-of: unified-orchestrator
+spec:
+  type: ClusterIP
+  selector:
+    app: dagster
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      name: http
+---
+# Ingress for external access to Dagster UI
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dagster-ingress
+  namespace: orchestrator
+  labels:
+    app: dagster
+    app.kubernetes.io/part-of: unified-orchestrator
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - host: dagster.suddu.duckdns.org
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dagster
+                port:
+                  number: 3000

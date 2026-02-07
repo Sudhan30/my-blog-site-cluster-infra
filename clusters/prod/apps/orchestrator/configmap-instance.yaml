@@ -1,0 +1,98 @@
+---
+# Dagster instance configuration
+# Defines scheduler, run launcher, storage, and compute logs settings
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dagster-instance
+  namespace: orchestrator
+  labels:
+    app: dagster
+    app.kubernetes.io/part-of: unified-orchestrator
+data:
+  dagster.yaml: |
+    scheduler:
+      module: dagster.core.scheduler
+      class: DagsterDaemonScheduler
+
+    run_coordinator:
+      module: dagster.core.run_coordinator
+      class: QueuedRunCoordinator
+
+    run_launcher:
+      module: dagster_k8s
+      class: K8sRunLauncher
+      config:
+        # ConfigMap name containing this instance configuration
+        instance_config_map: dagster-instance
+
+        # Kubernetes namespace where job pods will be launched
+        job_namespace: orchestrator
+
+        # Service account for job pods
+        service_account_name: dagster
+
+        # Docker image for run pods
+        job_image: docker.io/sudhan03/orchestrator:latest
+        image_pull_policy: Always
+
+        # Image pull secrets for private registry access
+        image_pull_secrets:
+          - name: dockerhub-creds
+
+        # Load K8s config from within cluster
+        load_incluster_config: true
+
+        # Environment from ConfigMaps
+        env_config_maps:
+          - orchestrator-env
+
+        # Environment from Secrets (for sensitive data)
+        env_secrets:
+          - orchestrator-secrets
+
+        # Mount shared volumes for logs and models
+        volumes:
+          - name: dagster-logs
+            persistentVolumeClaim:
+              claimName: dagster-logs-pvc
+          - name: models
+            persistentVolumeClaim:
+              claimName: models-pvc
+
+        volume_mounts:
+          - name: dagster-logs
+            mount_path: /opt/dagster/logs
+          - name: models
+            mount_path: /app/models
+
+        # Delete completed run pods immediately (logs are stored in PVC)
+        job_spec_config:
+          ttl_seconds_after_finished: 0
+
+    # Storage uses TimescaleDB in trading namespace
+    storage:
+      postgres:
+        postgres_url:
+          env: DAGSTER_PG_URL
+
+    # Persistent compute log storage
+    compute_logs:
+      module: dagster.core.storage.local_compute_log_manager
+      class: LocalComputeLogManager
+      config:
+        base_dir: /opt/dagster/logs
+
+    # Automatic retention policies
+    retention:
+      schedule:
+        purge_after_days: 90
+      sensor:
+        purge_after_days: 90
+      auto_materialize:
+        purge_after_days: 90
+
+    # Enable run retries
+    run_retries:
+      enabled: true
+      max_retries: 2

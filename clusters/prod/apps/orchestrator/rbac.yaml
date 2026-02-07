@@ -1,0 +1,52 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dagster
+  namespace: orchestrator
+  labels:
+    app: dagster
+    app.kubernetes.io/part-of: unified-orchestrator
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dagster-role
+  namespace: orchestrator
+  labels:
+    app: dagster
+    app.kubernetes.io/part-of: unified-orchestrator
+rules:
+  # Pod permissions for K8sRunLauncher
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "pods/status"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  # Job permissions for run launcher
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "delete", "patch", "update"]
+  # ConfigMap read permissions
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list"]
+  # Secret read permissions
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dagster-role-binding
+  namespace: orchestrator
+  labels:
+    app: dagster
+    app.kubernetes.io/part-of: unified-orchestrator
+subjects:
+  - kind: ServiceAccount
+    name: dagster
+    namespace: orchestrator
+roleRef:
+  kind: Role
+  name: dagster-role
+  apiGroup: rbac.authorization.k8s.io

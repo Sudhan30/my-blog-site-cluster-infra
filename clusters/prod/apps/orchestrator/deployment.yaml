@@ -118,13 +118,14 @@ metadata:
     app: dagster
     app.kubernetes.io/part-of: unified-orchestrator
 spec:
-  type: ClusterIP
+  type: NodePort
   selector:
     app: dagster
   ports:
     - protocol: TCP
       port: 3000
       targetPort: 3000
+      nodePort: 30030
       name: http
 ---
 # Ingress for external access to Dagster UI

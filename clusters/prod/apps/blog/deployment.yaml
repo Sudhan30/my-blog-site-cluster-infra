@@ -27,6 +27,8 @@ spec:
           env:
             - name: DATABASE_URL
               value: "postgresql://blog_user:piVdLYWqbtZyfWo2VkcY2QFC9lVjXbde@postgres-service:5432/blog_db?sslmode=disable"
+            - name: OLLAMA_HOST
+              value: "http://ollama-service:11434"
           resources:
             requests: { cpu: 100m, memory: 128Mi }
             limits: { cpu: 500m, memory: 512Mi }

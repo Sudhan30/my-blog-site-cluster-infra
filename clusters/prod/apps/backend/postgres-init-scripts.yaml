@@ -109,3 +109,26 @@ data:
     CREATE TRIGGER update_chat_sessions_updated_at
         BEFORE UPDATE ON chat_sessions
         FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+  03-blog-moderation.sql: |
+    -- Add moderation columns to comments table
+    ALTER TABLE comments ADD COLUMN IF NOT EXISTS approved BOOLEAN DEFAULT TRUE;
+    ALTER TABLE comments ADD COLUMN IF NOT EXISTS moderation_reason TEXT;
+
+    -- Create comment summaries table for AI-generated summaries
+    CREATE TABLE IF NOT EXISTS comment_summaries (
+        id SERIAL PRIMARY KEY,
+        post_id VARCHAR(255) UNIQUE NOT NULL,
+        summary_text TEXT NOT NULL,
+        comment_count INTEGER DEFAULT 0,
+        last_comment_id INTEGER,  -- Track last processed comment for incremental updates
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Index for quick lookup by post_id
+    CREATE INDEX IF NOT EXISTS idx_comment_summaries_post_id ON comment_summaries(post_id);
+    CREATE INDEX IF NOT EXISTS idx_comments_approved ON comments(approved);
+
+    -- Update existing comments to be approved by default
+    UPDATE comments SET approved = TRUE WHERE approved IS NULL;

@@ -20,7 +20,7 @@ spec:
         - containerPort: 11434
         env:
         - name: HSA_OVERRIDE_GFX_VERSION
-          value: "11.0.3"
+          value: "11.0.0"
         - name: OLLAMA_LOAD_TIMEOUT
           value: "5m"
         securityContext:
@@ -37,7 +37,7 @@ spec:
             memory: "4Gi"
             cpu: "500m"
           limits:
-            memory: "12Gi"
+            memory: "48Gi"
             cpu: "4"
       volumes:
       - name: ollama-storage

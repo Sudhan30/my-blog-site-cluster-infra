@@ -15,12 +15,12 @@ spec:
     spec:
       containers:
       - name: ollama
-        image: ollama/ollama:rocm
+        image: ollama/ollama:latest
         ports:
         - containerPort: 11434
         env:
-        - name: HSA_OVERRIDE_GFX_VERSION
-          value: "11.0.3"
+        - name: OLLAMA_VULKAN
+          value: "1"
         securityContext:
           privileged: true
         volumeMounts:

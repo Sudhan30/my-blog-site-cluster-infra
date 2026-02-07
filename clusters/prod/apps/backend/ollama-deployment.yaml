@@ -47,9 +47,11 @@ spec:
       - name: dev-kfd
         hostPath:
           path: /dev/kfd
+          type: CharDevice
       - name: dev-dri
         hostPath:
           path: /dev/dri
+          type: Directory
 ---
 apiVersion: v1
 kind: Service

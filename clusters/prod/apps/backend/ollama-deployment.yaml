@@ -21,6 +21,8 @@ spec:
         env:
         - name: OLLAMA_VULKAN
           value: "1"
+        - name: VK_ICD_FILENAMES
+          value: "/usr/share/vulkan/icd.d/radeon_icd.json"
         securityContext:
           privileged: true
         volumeMounts:
@@ -30,6 +32,12 @@ spec:
           mountPath: /dev/kfd
         - name: dev-dri
           mountPath: /dev/dri
+        - name: vulkan-icd
+          mountPath: /usr/share/vulkan/icd.d
+          readOnly: true
+        - name: vulkan-drivers
+          mountPath: /lib/x86_64-linux-gnu/libvulkan_radeon.so
+          readOnly: true
       volumes:
       - name: ollama-storage
         hostPath:
@@ -41,6 +49,12 @@ spec:
       - name: dev-dri
         hostPath:
           path: /dev/dri
+      - name: vulkan-icd
+        hostPath:
+          path: /usr/share/vulkan/icd.d
+      - name: vulkan-drivers
+        hostPath:
+          path: /lib/x86_64-linux-gnu/libvulkan_radeon.so
 ---
 apiVersion: v1
 kind: Service

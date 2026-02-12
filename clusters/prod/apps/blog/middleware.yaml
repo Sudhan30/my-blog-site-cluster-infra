@@ -1,0 +1,10 @@
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: cache-headers
+  namespace: web
+spec:
+  headers:
+    customResponseHeaders:
+      Cache-Control: "public, max-age=21600, s-maxage=21600"
+      Vary: "Accept-Encoding"

@@ -6,6 +6,8 @@ metadata:
   annotations:
     # Add CORS headers for API routes
     traefik.ingress.kubernetes.io/custom-request-headers: "X-Forwarded-Proto:https"
+    # Apply cache headers middleware
+    traefik.ingress.kubernetes.io/router.middlewares: "web-cache-headers@kubernetescrd"
 spec:
   ingressClassName: traefik
   tls:

@@ -4,6 +4,7 @@ resources:
   - configMap.yaml
   - deployment.yaml
   - service.yaml
+  - middleware.yaml
   - ingress.yaml
   - hpa.yaml
   - imageautomation.yaml

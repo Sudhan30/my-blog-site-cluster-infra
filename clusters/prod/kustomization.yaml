@@ -6,3 +6,4 @@ resources:
   - apps/monitoring
   - apps/infra
   - apps/trading
+  - apps/oppam

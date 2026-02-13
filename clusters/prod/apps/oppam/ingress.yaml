@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oppam-ingress
+  namespace: web
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.middlewares: web-oppam-headers@kubernetescrd
+spec:
+  tls:
+  - hosts:
+    - oppam.app
+    secretName: oppam-tls
+  rules:
+  - host: oppam.app
+    http:
+      paths:
+      - path: /api
+        pathType: Prefix
+        backend:
+          service:
+            name: oppam-backend-service
+            port:
+              number: 3000
+      - path: /uploads
+        pathType: Prefix
+        backend:
+          service:
+            name: oppam-backend-service
+            port:
+              number: 3000
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: oppam-frontend-service
+            port:
+              number: 80
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: oppam-headers
+  namespace: web
+spec:
+  headers:
+    customRequestHeaders:
+      X-Forwarded-Proto: "https"
+    customResponseHeaders:
+      X-Frame-Options: "SAMEORIGIN"
+      X-Content-Type-Options: "nosniff"

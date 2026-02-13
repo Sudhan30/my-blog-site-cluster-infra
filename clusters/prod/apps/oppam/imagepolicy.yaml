@@ -1,0 +1,27 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: oppam-backend
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: oppam-backend
+  policy:
+    semver:
+      range: '>=1.0.0'
+  filterTags:
+    pattern: '^v?[0-9]+\.[0-9]+\.[0-9]+$'
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: oppam-frontend
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: oppam-frontend
+  policy:
+    semver:
+      range: '>=1.0.0'
+  filterTags:
+    pattern: '^v?[0-9]+\.[0-9]+\.[0-9]+$'

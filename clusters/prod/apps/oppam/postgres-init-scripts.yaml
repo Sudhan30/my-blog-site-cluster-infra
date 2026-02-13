@@ -1,0 +1,161 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: oppam-postgres-init
+  namespace: web
+data:
+  01-oppam-init.sql: |
+    -- Oppam Database Schema
+    -- PostgreSQL 15+
+
+    -- Enable UUID extension
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+    CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+    -- Users table (full auth, unlike blog's anonymous system)
+    CREATE TABLE IF NOT EXISTS users (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        display_name VARCHAR(100) NOT NULL,
+        avatar_url VARCHAR(500),
+        email_verified BOOLEAN DEFAULT false,
+        verification_token VARCHAR(255),
+        reset_token VARCHAR(255),
+        reset_token_expires TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Friendships (bidirectional relationships)
+    CREATE TABLE IF NOT EXISTS friendships (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        friend_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(20) CHECK (status IN ('pending', 'accepted', 'rejected')),
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, friend_id)
+    );
+
+    -- Pacts (core commitment/task entity)
+    CREATE TABLE IF NOT EXISTS pacts (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        creator_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(200) NOT NULL,
+        description TEXT,
+        pact_type VARCHAR(20) CHECK (pact_type IN ('solo', 'duel', 'squad')),
+        proof_type VARCHAR(20) CHECK (proof_type IN ('photo', 'geofence', 'biometric', 'github')),
+        schedule_cron VARCHAR(100),
+        grace_period_minutes INT DEFAULT 15,
+        reward_type VARCHAR(50),
+        status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed')),
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Pact participants (for duel and squad types)
+    CREATE TABLE IF NOT EXISTS pact_participants (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        pact_id UUID REFERENCES pacts(id) ON DELETE CASCADE,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        role VARCHAR(20) CHECK (role IN ('participant', 'voucher')),
+        joined_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(pact_id, user_id)
+    );
+
+    -- Proof submissions
+    CREATE TABLE IF NOT EXISTS proofs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        pact_id UUID REFERENCES pacts(id) ON DELETE CASCADE,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        proof_type VARCHAR(20) CHECK (proof_type IN ('photo', 'geofence', 'biometric', 'github')),
+        file_path VARCHAR(500),
+        metadata JSONB,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'vouched', 'rejected')),
+        voucher_id UUID REFERENCES users(id),
+        vouch_comment TEXT,
+        submitted_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        vouched_at TIMESTAMPTZ
+    );
+
+    -- Streaks tracking
+    CREATE TABLE IF NOT EXISTS streaks (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        pact_id UUID REFERENCES pacts(id) ON DELETE CASCADE,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        current_streak INT DEFAULT 0,
+        longest_streak INT DEFAULT 0,
+        total_completions INT DEFAULT 0,
+        level INT DEFAULT 1,
+        last_completion_date DATE,
+        updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(pact_id, user_id)
+    );
+
+    -- Social debt ledger
+    CREATE TABLE IF NOT EXISTS debts (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        debtor_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        creditor_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        pact_id UUID REFERENCES pacts(id) ON DELETE SET NULL,
+        reward_type VARCHAR(50) NOT NULL,
+        quantity INT DEFAULT 1,
+        status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'settled', 'forgiven')),
+        settlement_proof_path VARCHAR(500),
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+        settled_at TIMESTAMPTZ
+    );
+
+    -- Activity feed
+    CREATE TABLE IF NOT EXISTS activities (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+        activity_type VARCHAR(50),
+        pact_id UUID REFERENCES pacts(id) ON DELETE SET NULL,
+        metadata JSONB,
+        visibility VARCHAR(20) DEFAULT 'friends' CHECK (visibility IN ('private', 'friends', 'public')),
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Indexes
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+    CREATE INDEX IF NOT EXISTS idx_users_verification_token ON users(verification_token) WHERE verification_token IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_users_reset_token ON users(reset_token) WHERE reset_token IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_friendships_user ON friendships(user_id);
+    CREATE INDEX IF NOT EXISTS idx_friendships_friend ON friendships(friend_id);
+    CREATE INDEX IF NOT EXISTS idx_friendships_status ON friendships(status);
+    CREATE INDEX IF NOT EXISTS idx_pacts_creator ON pacts(creator_id);
+    CREATE INDEX IF NOT EXISTS idx_pacts_status ON pacts(status);
+    CREATE INDEX IF NOT EXISTS idx_pacts_created_at ON pacts(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_pact_participants_pact ON pact_participants(pact_id);
+    CREATE INDEX IF NOT EXISTS idx_pact_participants_user ON pact_participants(user_id);
+    CREATE INDEX IF NOT EXISTS idx_proofs_pact ON proofs(pact_id);
+    CREATE INDEX IF NOT EXISTS idx_proofs_user ON proofs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_proofs_status ON proofs(status);
+    CREATE INDEX IF NOT EXISTS idx_proofs_submitted_at ON proofs(submitted_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_streaks_user ON streaks(user_id);
+    CREATE INDEX IF NOT EXISTS idx_streaks_pact ON streaks(pact_id);
+    CREATE INDEX IF NOT EXISTS idx_debts_debtor ON debts(debtor_id);
+    CREATE INDEX IF NOT EXISTS idx_debts_creditor ON debts(creditor_id);
+    CREATE INDEX IF NOT EXISTS idx_debts_status ON debts(status);
+    CREATE INDEX IF NOT EXISTS idx_activities_user ON activities(user_id);
+    CREATE INDEX IF NOT EXISTS idx_activities_created_at ON activities(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_activities_visibility ON activities(visibility);
+
+    -- Triggers
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+
+    CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE TRIGGER update_pacts_updated_at BEFORE UPDATE ON pacts
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+    CREATE TRIGGER update_streaks_updated_at BEFORE UPDATE ON streaks
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oppam-frontend
+  namespace: web
+  labels:
+    app: oppam-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: oppam-frontend
+  template:
+    metadata:
+      labels:
+        app: oppam-frontend
+    spec:
+      imagePullSecrets:
+        - name: dockerhub-creds
+      containers:
+      - name: oppam-frontend
+        image: docker.io/sudhan03/oppam-frontend:latest # {"$imagepolicy": "flux-system:oppam-frontend"}
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 80
+          initialDelaySeconds: 3
+          periodSeconds: 5

@@ -1,0 +1,17 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: oppam-backend
+  namespace: flux-system
+spec:
+  image: docker.io/sudhan03/oppam-backend
+  interval: 1m
+---
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: oppam-frontend
+  namespace: flux-system
+spec:
+  image: docker.io/sudhan03/oppam-frontend
+  interval: 1m

@@ -20,7 +20,7 @@ spec:
         - name: dockerhub-creds
       containers:
         - name: blog
-          image: docker.io/sudhan03/blog-site:blog-3718d6e1f55821e7628fdc27a4063b13c9332080
+          image: docker.io/sudhan03/blog-site:blog-dac7c7fded3043423f5ccb7cb0ef02eb5c33a90f
           imagePullPolicy: Always
           ports:
             - containerPort: 80

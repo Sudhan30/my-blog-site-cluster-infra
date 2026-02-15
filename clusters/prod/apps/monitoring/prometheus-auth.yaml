@@ -7,7 +7,7 @@ type: Opaque
 data:
   # Bcrypt-hashed credentials for basic auth
   # Generated with: htpasswd -nbB <username> '<password>' | base64
-  users: YWRtaW46JDJ5JDA1JElONFptQ2dEUE5Kbmp0VkhRRTJnamVBQTAyWnUuUUhJaWVhWFNUL0lYc25KcWhOTUlyeTUuCgo=
+  users: YWRtaW46JDJ5JDA1JDJnbmguOHp3QWF6bVRRai9LRDdTdHV4MS8yTDFYQkdwUDAwaWxuUjB0UXFTMjEuSmdqbnFDCgo=
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

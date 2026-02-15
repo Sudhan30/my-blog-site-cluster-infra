@@ -26,7 +26,10 @@ spec:
             - containerPort: 80
           env:
             - name: DATABASE_URL
-              value: "postgresql://blog_user:Ckl66lp1yPloHck0trtf899mTgfVLJr2OuMmg18M@postgres-service:5432/blog_db?sslmode=disable"
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db-secret
+                  key: database-url
             - name: OLLAMA_HOST
               value: "http://ollama-service:11434"
           resources:

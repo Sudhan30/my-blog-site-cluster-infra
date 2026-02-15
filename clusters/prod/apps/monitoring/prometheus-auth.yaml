@@ -6,9 +6,9 @@ metadata:
 type: Opaque
 data:
   # Username: admin
-  # Password: prometheus123
-  # Generated with: htpasswd -nb admin prometheus123 | base64
-  users: YWRtaW46JGFwcjEkRzBLb3h6NUMkTnN4UjBWWEJEVHhKLk9ucE1Qb2FsMQo=
+  # Password: Pr0m3th3us2026!
+  # Generated with: htpasswd -nbB admin 'Pr0m3th3us2026!' | base64
+  users: YWRtaW46JDJ5JDA1JElONFptQ2dEUE5Kbmp0VkhRRTJnamVBQTAyWnUuUUhJaWVhWFNUL0lYc25KcWhOTUlyeTUuCgo=
 ---
 apiVersion: traefik.io/v1alpha1
 kind: Middleware

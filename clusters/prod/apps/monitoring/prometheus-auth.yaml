@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: prometheus-auth
+  namespace: web
+type: Opaque
+data:
+  # Username: admin
+  # Password: prometheus123
+  # Generated with: htpasswd -nb admin prometheus123 | base64
+  users: YWRtaW46JGFwcjEkRzBLb3h6NUMkTnN4UjBWWEJEVHhKLk9ucE1Qb2FsMQo=
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: prometheus-auth
+  namespace: web
+spec:
+  basicAuth:
+    secret: prometheus-auth

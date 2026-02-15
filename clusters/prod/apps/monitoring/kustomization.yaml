@@ -7,6 +7,7 @@ resources:
   - prometheus-config.yaml
   - prometheus-pvc.yaml
   - prometheus-rbac.yaml
+  - prometheus-auth.yaml
   # Grafana
   - grafana-secret.yaml
   - grafana-deployment.yaml

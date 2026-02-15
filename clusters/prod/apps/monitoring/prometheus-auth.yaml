@@ -5,9 +5,8 @@ metadata:
   namespace: web
 type: Opaque
 data:
-  # Username: admin
-  # Password: Pr0m3th3us2026!
-  # Generated with: htpasswd -nbB admin 'Pr0m3th3us2026!' | base64
+  # Bcrypt-hashed credentials for basic auth
+  # Generated with: htpasswd -nbB <username> '<password>' | base64
   users: YWRtaW46JDJ5JDA1JElONFptQ2dEUE5Kbmp0VkhRRTJnamVBQTAyWnUuUUhJaWVhWFNUL0lYc25KcWhOTUlyeTUuCgo=
 ---
 apiVersion: traefik.io/v1alpha1

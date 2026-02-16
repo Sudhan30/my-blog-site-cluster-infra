@@ -30,6 +30,11 @@ spec:
                 secretKeyRef:
                   name: blog-db-secret
                   key: database-url
+            - name: GOTIFY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: blog-db-secret
+                  key: gotify-token
             - name: OLLAMA_HOST
               value: "http://ollama-service:11434"
           resources:

@@ -1,54 +1,49 @@
 # 🚀 My Blog Site - Kubernetes Infrastructure
 
-A complete Kubernetes infrastructure setup hosting two primary applications:
-1. **Modern Blog Site**: Angular frontend + Node.js backend
-2. **Algorithmic Trading System**: High-frequency trading platform with microservices architecture
+A production-ready Kubernetes infrastructure setup for a modern blog platform with monitoring and observability.
 
 ## 🏗️ **Architecture**
 
 ```
-┌─────────────────────────────────┐   ┌────────────────────────────────────────────────────────┐
-│           Blog System           │   │                    Trading System                      │
-│                                 │   │                                                        │
-│  ┌────────────┐ ┌────────────┐  │   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-│  │  Frontend  │ │  Backend   │  │   │  │ Data        │  │ Strategy    │  │ Order       │ │
-│  │ (Angular)  │ │ (Node.js)  │  │   │  │ Ingestion   │→ │ Engine      │→ │ Executor    │ │
-│  └────────────┘ └────────────┘  │   │  └─────────────┘  └─────────────┘  └─────────────┘ │
-│         │             │         │   │         │               │                │         │
-└─────────┼─────────────┼─────────┘   │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐ │
-          │             │             │  │ Data        │  │ Portfolio   │  │ TimescaleDB │ │
-          └─────────────┴───────────┬─┤  │ Integrity   │  │ Tracker     │  │ (Storage)   │ │
-                                    │ │  └─────────────┘  └─────────────┘  └─────────────┘ │
-                       ┌────────────┴─┴────────────────────────────────────┐
-                       │               Kubernetes Cluster                  │
-                       │                 (k3s + Flux CD)                   │
-                       └───────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┐
+│              Blog System                    │
+│                                             │
+│  ┌────────────┐         ┌────────────┐     │
+│  │  Frontend  │         │  Backend   │     │
+│  │  (Bun.js)  │    ←→   │  (Bun.js)  │     │
+│  └────────────┘         └────────────┘     │
+│         │                      │            │
+│         └──────────┬───────────┘            │
+│                    │                        │
+│         ┌──────────▼──────────┐             │
+│         │    PostgreSQL DB    │             │
+│         └─────────────────────┘             │
+│                                             │
+└─────────────────────────────────────────────┘
+                    │
+       ┌────────────▼────────────┐
+       │   Kubernetes Cluster    │
+       │    (K3s + FluxCD)       │
+       └─────────────────────────┘
 ```
 
 ## 📦 **Components**
 
-### **Frontend** (`blog-site`)
-- **Technology**: Angular + Nginx
+### **Blog Application** (`blog`)
+- **Technology**: Bun.js (TypeScript)
 - **URL**: `https://blog.sudharsana.dev`
+- **Features**: Posts, Comments, Feedback, RSS/Sitemap
 - **Auto-scaling**: HPA enabled (2-10 pods)
 
-### **Backend API** (`blog-site-backend`)
-- **Technology**: Node.js + Express
-- **URL**: `https://blog.sudharsana.dev/api/*`
-- **Features**: Posts, Comments, Likes, Analytics
+### **Database** (`postgres`)
+- **Technology**: PostgreSQL 15
+- **Features**: Post storage, comments, user tracking
+- **Persistence**: PVC-backed storage
 
-### **Infrastructure** (`blog-site-infra`)
-- **Technology**: Multi-service container (Supervisor)
-- **Services**: PostgreSQL, Redis, Prometheus, Grafana
-- **Monitoring**: Postgres Exporter, Blackbox Exporter
-
-### **Trading System** (`trading`)
-- **Strategy Engine**: AI/ML based decision making (Python)
-- **Data Ingestion**: Real-time market data feed handler
-- **Order Executor**: Low-latency trade execution
-- **Portfolio Tracker**: PnL and position monitoring
-- **Data Integrity**: Gap detection, strict validation, and self-healing
-- **TimescaleDB**: Time-series data storage for market data
+### **Monitoring Stack**
+- **Prometheus**: Metrics collection and alerting
+- **Grafana**: Dashboards and visualization
+- **Exporters**: Postgres, Blackbox monitoring
 
 ## 🚀 **Quick Start**
 
@@ -89,9 +84,8 @@ kubectl apply -k clusters/prod/
 4. **Flux deploys** → Updated pods in cluster
 
 ### **Image Automation**
-- **Blog Frontend**: `docker.io/sudhan03/blog-site`
-- **Backend API**: `docker.io/sudhan03/blog-site-backend`
-- **Infrastructure**: `docker.io/sudhan03/blog-site-infra`
+- **Blog Application**: `docker.io/sudhan03/blog-site`
+- **Ollama (AI)**: `ollama/ollama:rocm`
 
 ## 📊 **Monitoring & Observability**
 
@@ -170,33 +164,28 @@ CREATE TABLE likes (
 ### **Namespaces**
 - `web` - Main application namespace
 - `flux-system` - Flux CD components
-- `trading` - High-frequency trading system
+- `monitoring` - Prometheus and Grafana
 
 ### **Key Resources**
-- **Deployments**: 
-  - **Web**: `blog`, `blog-backend`, `infra`
-  - **Trading**: `strategy-engine`, `order-executor`, `data-ingestion`, `portfolio-tracker`, `data-integrity`, `reconciliation`, `redis`, `timescaledb`
-- **Services**: `blog`, `blog-backend-service`, `infra`, `timescaledb`, `redis`
-- **Ingress**: `blog` (with TLS)
-- **HPA**: `blog` (auto-scaling)
-- **PVC**: Data persistence (Postgres, TimescaleDB, Redis)
+- **Deployments**: `blog`, `postgres`, `prometheus`, `grafana`, `ollama`
+- **Services**: `blog-service`, `postgres-service`, `prometheus-service`, `grafana-service`, `ollama-service`
+- **Ingress**: `blog-ingress` (with TLS)
+- **Secrets**: `blog-db-secret`, `grafana-secret`
+- **PVC**: Data persistence (Postgres, Prometheus, Grafana, Ollama)
 
 ## 📁 **Repository Structure**
 
 ```
 ├── clusters/prod/           # Kubernetes manifests
 │   ├── apps/
-│   │   ├── blog/           # Frontend application
-│   │   ├── backend/        # Backend API
-│   │   ├── monitoring/     # Monitoring stack
-│   │   └── infra/          # Infrastructure services
+│   │   ├── blog/           # Blog application
+│   │   ├── postgres/       # Database
+│   │   ├── monitoring/     # Prometheus & Grafana
+│   │   ├── ollama/         # AI service
+│   │   └── gotify/         # Notification service
 │   └── kustomization.yaml  # Main kustomization
 ├── .github/workflows/       # CI/CD workflows
-├── backend/                 # Backend source code
-├── infra/                   # Infrastructure components
-├── blog/                    # Frontend build files
-├── archive/                 # Archived files and docs
-└── create-secrets.sh        # Security setup script
+└── README.md               # This file
 ```
 
 ## 🔐 **Security Features**

@@ -20,7 +20,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: ops-dashboard
-        image: docker.io/sudhan03/algo-trading:ops-dashboard-e99c0ee
+        image: docker.io/sudhan03/algo-trading:ops-dashboard-185d00f
         imagePullPolicy: Always
         ports:
         - containerPort: 8501

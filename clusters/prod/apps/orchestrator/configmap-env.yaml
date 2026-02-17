@@ -17,7 +17,7 @@ data:
   DB_NAME: "trading_db"
 
   # Blog database (PostgreSQL in web namespace)
-  BLOG_DATABASE_URL: "postgresql://blog_user:piVdLYWqbtZyfWo2VkcY2QFC9lVjXbde@postgres-service.web.svc.cluster.local:5432/blog_db"
+  BLOG_DATABASE_URL: "postgresql://blog_user:Zx9mKp4vNq8rLt2wYh5jGf3cDe7aXb6sQw1uRe0o@postgres-service.web.svc.cluster.local:5432/blog_db?sslmode=disable"
 
   # Ollama LLM service (in web namespace)
   OLLAMA_HOST: "http://ollama-service.web.svc.cluster.local:11434"

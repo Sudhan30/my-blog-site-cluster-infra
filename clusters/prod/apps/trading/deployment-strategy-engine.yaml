@@ -48,6 +48,9 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /app/config
+        - name: ml-models
+          mountPath: /app/models
+          readOnly: true
         resources:
           requests:
             memory: "2Gi"
@@ -59,3 +62,7 @@ spec:
       - name: config
         configMap:
           name: trading-config
+      - name: ml-models
+        hostPath:
+          path: /var/lib/rancher/k3s/storage/pvc-499f893f-7b25-4758-9cc5-4559b45c1ee0_orchestrator_models-pvc
+          type: Directory

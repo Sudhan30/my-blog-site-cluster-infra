@@ -7,10 +7,9 @@ spec:
   imageRepositoryRef:
     name: oppam-backend
   filterTags:
-    pattern: '^ts-(?P<ts>[0-9]+)$'
-    extract: '$ts'
+    pattern: '^ts-[0-9]+$'
   policy:
-    numerical:
+    alphabetical:
       order: asc
 ---
 apiVersion: image.toolkit.fluxcd.io/v1beta2
@@ -22,8 +21,7 @@ spec:
   imageRepositoryRef:
     name: oppam-frontend
   filterTags:
-    pattern: '^ts-(?P<ts>[0-9]+)$'
-    extract: '$ts'
+    pattern: '^ts-[0-9]+$'
   policy:
-    numerical:
+    alphabetical:
       order: asc

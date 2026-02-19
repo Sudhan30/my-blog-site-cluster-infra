@@ -115,7 +115,7 @@ data:
     # Signal Ranking & Scarcity (New Phase 3)
     strategy_engine:
       signal_timeframe_minutes: 15
-      max_signals_per_batch: 5      # Only execute top 5 signals per minute
+      max_signals_per_batch: 3      # Only execute top 3 signals per batch
     
     # Sector Relative Strength ("The Rotator")
     sector_relative_strength:
@@ -126,9 +126,9 @@ data:
     # Close stagnant positions to free up capital
     time_decay:
       enabled: true
-      max_stale_hours: 4.0          # Close if held > 4 hours
-      min_profit_threshold_pct: 0.5 # AND profit is < 0.5% (stagnant)
-      profit_protect_threshold_pct: 1.5 # BUT keep holding if profit > 1.5% (let winners run)
+      max_stale_hours: 3.0          # Must fit within 6.5h trading day
+      min_profit_threshold_pct: 0.3 # Close if PnL < 0.3% after max hold
+      profit_protect_threshold_pct: 1.0 # Protect profits above 1%
     
     # Time Sync Validation (clock drift protection)
     time_sync:
@@ -239,8 +239,9 @@ data:
         volume_threshold: 1.5
     
       # News Sentiment (AI/NLP)
+      # DISABLED: Generated 11,781 noise signals/day, -$18 PnL proven toxic
       news_sentiment:
-        enabled: true
+        enabled: false
         sentiment_threshold: 0.2
         news_limit: 5
     

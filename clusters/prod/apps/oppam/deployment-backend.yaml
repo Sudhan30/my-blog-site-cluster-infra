@@ -43,6 +43,16 @@ spec:
             secretKeyRef:
               name: oppam-secrets
               key: resend-api-key
+        - name: VAPID_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oppam-secrets
+              key: vapid-public-key
+        - name: VAPID_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: oppam-secrets
+              key: vapid-private-key
         - name: FRONTEND_URL
           value: "https://oppam.app"
         - name: UPLOADS_DIR

@@ -18,68 +18,68 @@ spec:
       imagePullSecrets:
         - name: dockerhub-creds
       containers:
-      - name: oppam-backend
-        image: docker.io/sudhan03/oppam-backend:ts-1771570457 # {"$imagepolicy": "flux-system:oppam-backend"}
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 3000
-        env:
-        - name: NODE_ENV
-          value: "production"
-        - name: PORT
-          value: "3000"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: oppam-secrets
-              key: database-url
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: oppam-secrets
-              key: jwt-secret
-        - name: RESEND_API_KEY
-          valueFrom:
-            secretKeyRef:
-              name: oppam-secrets
-              key: resend-api-key
-        - name: VAPID_PUBLIC_KEY
-          valueFrom:
-            secretKeyRef:
-              name: oppam-secrets
-              key: vapid-public-key
-        - name: VAPID_PRIVATE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: oppam-secrets
-              key: vapid-private-key
-        - name: FRONTEND_URL
-          value: "https://oppam.app"
-        - name: UPLOADS_DIR
-          value: "/uploads"
-        volumeMounts:
-        - name: uploads
-          mountPath: /uploads
-        resources:
-          requests:
-            cpu: 100m
-            memory: 256Mi
-          limits:
-            cpu: 500m
-            memory: 1Gi
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 3000
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: oppam-backend
+          image: docker.io/sudhan03/oppam-backend:ts-1771637181 # {"$imagepolicy": "flux-system:oppam-backend"}
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: oppam-secrets
+                  key: database-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: oppam-secrets
+                  key: jwt-secret
+            - name: RESEND_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oppam-secrets
+                  key: resend-api-key
+            - name: VAPID_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oppam-secrets
+                  key: vapid-public-key
+            - name: VAPID_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: oppam-secrets
+                  key: vapid-private-key
+            - name: FRONTEND_URL
+              value: "https://oppam.app"
+            - name: UPLOADS_DIR
+              value: "/uploads"
+          volumeMounts:
+            - name: uploads
+              mountPath: /uploads
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
-      - name: uploads
-        persistentVolumeClaim:
-          claimName: oppam-uploads-pvc
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: oppam-uploads-pvc

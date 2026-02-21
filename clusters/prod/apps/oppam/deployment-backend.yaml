@@ -19,7 +19,7 @@ spec:
         - name: dockerhub-creds
       containers:
       - name: oppam-backend
-        image: docker.io/sudhan03/oppam-backend:ts-1771562950 # {"$imagepolicy": "flux-system:oppam-backend"}
+        image: docker.io/sudhan03/oppam-backend:ts-1771570457 # {"$imagepolicy": "flux-system:oppam-backend"}
         imagePullPolicy: Always
         ports:
         - containerPort: 3000

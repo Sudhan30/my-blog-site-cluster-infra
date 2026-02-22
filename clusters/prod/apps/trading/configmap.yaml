@@ -250,9 +250,10 @@ data:
         sentiment_threshold: 0.2
         news_limit: 5
     
-      # Panic Selling Exhaustion Reversal (Rare but profitable)
+      # Panic Selling Exhaustion Reversal
+      # DISABLED: -$56 from 13 trades in v19 backtest (-$4.34 avg, massive outlier losses)
       panic_reversal:
-        enabled: true
+        enabled: false
         panic_candle_std: 3.0          # Std devs for panic candle detection
         volume_spike_multiplier: 2.5   # Volume vs average for panic
         consolidation_bars: 5          # Bars to form exhaustion base

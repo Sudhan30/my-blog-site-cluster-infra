@@ -242,6 +242,7 @@ data:
         enabled: true
         lookback_period: 20
         volume_threshold: 1.5
+        min_breakout_pct: 0.3        # Min % above resistance (paper: "minimum amplitude")
     
       # News Sentiment (AI/NLP)
       # DISABLED: Generated 11,781 noise signals/day, -$18 PnL proven toxic
@@ -272,7 +273,7 @@ data:
       # Opening Range Breakout (ORB)
       orb:
         enabled: true
-        opening_range_minutes: 30      # First 30 min = opening range
+        opening_range_minutes: 15      # First 15 min = one candle (paper: 5-15 min optimal)
         breakout_buffer_pct: 0.1       # 0.1% above ORB high to confirm
         volume_threshold: 1.5          # Volume must be 1.5x average
 

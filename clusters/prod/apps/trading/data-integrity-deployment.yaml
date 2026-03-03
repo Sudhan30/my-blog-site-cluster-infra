@@ -22,7 +22,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: data-integrity
-        image: docker.io/sudhan03/algo-trading:data-integrity-f56053a
+        image: docker.io/sudhan03/algo-trading:data-integrity-409b0c6
         imagePullPolicy: Always
         env:
         - name: ALPACA_API_KEY

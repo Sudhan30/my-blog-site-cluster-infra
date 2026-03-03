@@ -13,3 +13,6 @@ resources:
   - deployment-portfolio-tracker.yaml
   - data-integrity-deployment.yaml
   - job-backtester.yaml
+  - deployment-news-intelligence.yaml
+  - deployment-research-agent.yaml
+  - deployment-chat-agent.yaml

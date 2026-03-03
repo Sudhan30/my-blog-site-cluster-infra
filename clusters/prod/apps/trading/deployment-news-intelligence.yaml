@@ -1,0 +1,59 @@
+---
+# News Intelligence Service
+# Scrapes news (RSS, Finnhub, SEC), runs FinBERT sentiment, caches to Redis
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-intelligence
+  namespace: trading
+  labels:
+    app: news-intelligence
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: news-intelligence
+  template:
+    metadata:
+      labels:
+        app: news-intelligence
+    spec:
+      imagePullSecrets:
+      - name: docker-hub-creds
+      containers:
+      - name: news-intelligence
+        image: docker.io/sudhan03/algo-trading:news-intelligence-f56053a
+        imagePullPolicy: Always
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: DB_PASSWORD
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: REDIS_PASSWORD
+        - name: FINNHUB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: FINNHUB_API_KEY
+        - name: NEWS_INTELLIGENCE_ENABLED
+          value: "true"
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "2Gi"
+            cpu: "500m"
+      volumes:
+      - name: config
+        configMap:
+          name: trading-config

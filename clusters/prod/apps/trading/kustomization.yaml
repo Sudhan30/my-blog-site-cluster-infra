@@ -16,3 +16,4 @@ resources:
   - deployment-news-intelligence.yaml
   - deployment-research-agent.yaml
   - deployment-chat-agent.yaml
+  - cronjob-optimizer.yaml

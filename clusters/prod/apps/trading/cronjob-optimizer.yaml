@@ -1,0 +1,126 @@
+---
+# Autonomous Optimizer CronJob
+# Runs every Sunday at 8 AM ET (13:00 UTC)
+# Uses LLM (Ollama) to analyze performance and propose parameter improvements
+# Sends reports via Gotify
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: weekly-optimizer
+  namespace: trading
+  labels:
+    app: weekly-optimizer
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  schedule: "0 13 * * 0"  # Every Sunday 1 PM UTC = 8 AM ET
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 4
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 7200  # 2 hour max
+      template:
+        spec:
+          imagePullSecrets:
+          - name: docker-hub-creds
+          restartPolicy: Never
+          serviceAccountName: optimizer-sa
+          containers:
+          - name: optimizer
+            image: docker.io/sudhan03/algo-trading:strategy-engine-71b772a
+            command: ['python', '-m', 'services.optimizer.main']
+            workingDir: /app/src
+            env:
+            - name: OPTIMIZER_MODE
+              value: "once"
+            - name: OPTIMIZER_IMAGE
+              value: "docker.io/sudhan03/algo-trading:strategy-engine-71b772a"
+            - name: OPTIMIZER_CONFIGMAP
+              value: "v37-code"
+            - name: OPTIMIZER_LOG
+              value: "/tmp/optimizer_results.jsonl"
+            - name: OLLAMA_HOST
+              value: "http://ollama-service.web:11434"
+            - name: OLLAMA_MODEL
+              value: "gemma3:12b"
+            - name: OLLAMA_TIMEOUT
+              value: "120"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: DB_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: REDIS_PASSWORD
+            - name: GOTIFY_URL
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: GOTIFY_URL
+            - name: GOTIFY_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: GOTIFY_TOKEN
+            - name: ALPACA_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: ALPACA_API_KEY
+            - name: ALPACA_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: ALPACA_SECRET_KEY
+            volumeMounts:
+            - name: config
+              mountPath: /app/config
+            resources:
+              requests:
+                memory: "512Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi"
+                cpu: "500m"
+          volumes:
+          - name: config
+            configMap:
+              name: trading-config
+---
+# ServiceAccount for optimizer (needs permission to create/delete Jobs)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: optimizer-sa
+  namespace: trading
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: optimizer-role
+  namespace: trading
+rules:
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create", "delete", "get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: optimizer-rolebinding
+  namespace: trading
+subjects:
+- kind: ServiceAccount
+  name: optimizer-sa
+  namespace: trading
+roleRef:
+  kind: Role
+  name: optimizer-role
+  apiGroup: rbac.authorization.k8s.io

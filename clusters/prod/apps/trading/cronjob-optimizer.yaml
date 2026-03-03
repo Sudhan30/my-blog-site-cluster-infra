@@ -46,6 +46,11 @@ spec:
               value: "gemma3:12b"
             - name: OLLAMA_TIMEOUT
               value: "120"
+            - name: OPENROUTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: OPENROUTER_API_KEY
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:

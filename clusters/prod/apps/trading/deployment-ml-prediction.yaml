@@ -68,8 +68,9 @@ spec:
         configMap:
           name: trading-config
       - name: models
-        persistentVolumeClaim:
-          claimName: trading-pvc
+        hostPath:
+          path: /var/lib/rancher/k3s/storage/pvc-499f893f-7b25-4758-9cc5-4559b45c1ee0_orchestrator_models-pvc
+          type: Directory
       restartPolicy: Always
 ---
 apiVersion: v1

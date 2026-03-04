@@ -1,0 +1,67 @@
+---
+# ML Regime Model Retrainer CronJob
+# Runs every Sunday at 2 AM UTC
+# Retrains regime detection model on 90 days of market data
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ml-regime-retrainer
+  namespace: trading
+  labels:
+    app: ml-regime-retrainer
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  schedule: "0 2 * * 0"
+  concurrencyPolicy: Forbid
+  failedJobsHistoryLimit: 1
+  successfulJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          imagePullSecrets:
+          - name: docker-hub-creds
+          containers:
+          - name: trainer
+            image: docker.io/sudhan03/algo-trading:ml-prediction-04a219c
+            imagePullPolicy: Always
+            command: ["/bin/bash", "-c"]
+            args:
+            - |
+              echo "Starting Weekly Retraining..."
+              cd /app/src
+              export PYTHONPATH=/app/src
+              python3 services/ml_prediction/trainer.py --days 90
+              echo "Training complete"
+            env:
+            - name: PYTHONPATH
+              value: "/app/src"
+            - name: DB_HOST
+              value: "timescaledb"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: "trading_db"
+            - name: DB_USER
+              value: "trading_user"
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: DB_PASSWORD
+            resources:
+              requests:
+                cpu: "2000m"
+                memory: "4Gi"
+              limits:
+                cpu: "4000m"
+                memory: "8Gi"
+            volumeMounts:
+            - name: model-storage
+              mountPath: /app/models
+          restartPolicy: OnFailure
+          volumes:
+          - name: model-storage
+            hostPath:
+              path: /var/lib/rancher/k3s/storage/pvc-499f893f-7b25-4758-9cc5-4559b45c1ee0_orchestrator_models-pvc
+              type: Directory

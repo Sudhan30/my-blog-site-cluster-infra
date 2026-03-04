@@ -18,3 +18,4 @@ resources:
   - deployment-chat-agent.yaml
   - deployment-ml-prediction.yaml
   - cronjob-optimizer.yaml
+  - cronjob-ml-retrainer.yaml

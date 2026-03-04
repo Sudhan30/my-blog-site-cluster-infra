@@ -34,6 +34,29 @@ spec:
             secretKeyRef:
               name: trading-secrets
               key: DB_PASSWORD
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: REDIS_PASSWORD
+        - name: DASHBOARD_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: DASHBOARD_USERNAME
+        - name: DASHBOARD_PASSWORD_HASH
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: DASHBOARD_PASSWORD_HASH
+        - name: SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: SESSION_SECRET
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
         resources:
           requests:
             memory: "512Mi"
@@ -41,6 +64,10 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "1000m"
+      volumes:
+      - name: config
+        configMap:
+          name: trading-config
 ---
 apiVersion: v1
 kind: Service
@@ -53,4 +80,4 @@ spec:
   ports:
   - port: 8501
     targetPort: 8501
-  type: ClusterIP 
+  type: ClusterIP

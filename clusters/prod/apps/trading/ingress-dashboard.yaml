@@ -11,10 +11,10 @@ spec:
   ingressClassName: traefik
   tls:
   - hosts:
-    - algo.trading.sudharsana.dev
+    - trading.sudharsana.dev
     secretName: dashboard-tls
   rules:
-  - host: algo.trading.sudharsana.dev
+  - host: trading.sudharsana.dev
     http:
       paths:
       - path: /

@@ -26,6 +26,8 @@ spec:
         - containerPort: 8000
           name: http
         env:
+        - name: PYTHONPATH
+          value: "/app/src"
         - name: DB_HOST
           value: "timescaledb"
         - name: DB_PORT

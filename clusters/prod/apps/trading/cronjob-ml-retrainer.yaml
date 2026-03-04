@@ -36,6 +36,8 @@ spec:
             env:
             - name: PYTHONPATH
               value: "/app/src"
+            - name: CONFIG_PATH
+              value: "/app/config/config.yaml"
             - name: DB_HOST
               value: "timescaledb"
             - name: DB_PORT
@@ -59,8 +61,13 @@ spec:
             volumeMounts:
             - name: model-storage
               mountPath: /app/models
+            - name: config
+              mountPath: /app/config
           restartPolicy: OnFailure
           volumes:
+          - name: config
+            configMap:
+              name: trading-config
           - name: model-storage
             hostPath:
               path: /var/lib/rancher/k3s/storage/pvc-499f893f-7b25-4758-9cc5-4559b45c1ee0_orchestrator_models-pvc

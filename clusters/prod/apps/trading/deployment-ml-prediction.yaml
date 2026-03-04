@@ -28,6 +28,8 @@ spec:
         env:
         - name: PYTHONPATH
           value: "/app/src"
+        - name: CONFIG_PATH
+          value: "/app/config/config.yaml"
         - name: DB_HOST
           value: "timescaledb"
         - name: DB_PORT

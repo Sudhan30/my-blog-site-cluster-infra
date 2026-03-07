@@ -118,14 +118,13 @@ metadata:
     app: dagster
     app.kubernetes.io/part-of: unified-orchestrator
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: dagster
   ports:
     - protocol: TCP
       port: 3000
       targetPort: 3000
-      nodePort: 30030
       name: http
 ---
 # Ingress for external access to Dagster UI
@@ -138,10 +137,15 @@ metadata:
     app: dagster
     app.kubernetes.io/part-of: unified-orchestrator
   annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: web
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - dagster.sudharsana.dev
+      secretName: dagster-tls
   rules:
-    - host: dagster-suddu.duckdns.org
+    - host: dagster.sudharsana.dev
       http:
         paths:
           - path: /

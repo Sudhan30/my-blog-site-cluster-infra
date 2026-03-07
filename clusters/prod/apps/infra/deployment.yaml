@@ -46,10 +46,10 @@ spec:
           name: grafana
           protocol: TCP
         - containerPort: 9114
-          name: postgres-exporter
+          name: pg-exporter
           protocol: TCP
         - containerPort: 9115
-          name: blackbox-exporter
+          name: bb-exporter
           protocol: TCP
         env:
         - name: POSTGRES_DB

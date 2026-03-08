@@ -45,6 +45,31 @@ spec:
             secretKeyRef:
               name: trading-secrets
               key: ALPACA_SECRET_KEY
+        - name: SLACK_TRADES_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: SLACK_TRADES_WEBHOOK
+        - name: SLACK_BUYS_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: SLACK_BUYS_WEBHOOK
+        - name: SLACK_SELLS_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: SLACK_SELLS_WEBHOOK
+        - name: SLACK_NEWS_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: SLACK_NEWS_WEBHOOK
+        - name: SLACK_ERROR_WEBHOOK
+          valueFrom:
+            secretKeyRef:
+              name: trading-secrets
+              key: SLACK_ERROR_WEBHOOK
         volumeMounts:
         - name: config
           mountPath: /app/config

@@ -26,7 +26,7 @@ spec:
         - name: POSTGRES_USER
           value: "blog_user"
         - name: POSTGRES_PASSWORD
-          value: "blog_password"
+          value: "Zx9mKp4vNq8rLt2wYh5jGf3cDe7aXb6sQw1uRe0o"
         - name: PGDATA
           value: "/var/lib/postgresql/data/pgdata"
         resources:

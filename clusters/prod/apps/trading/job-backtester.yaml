@@ -20,7 +20,7 @@ spec:
     spec:
       restartPolicy: Never
       imagePullSecrets:
-        - name: dockerhub-creds
+        - name: docker-hub-creds
       containers:
         - name: backtester
           image: docker.io/sudhan03/algo-trading:backtester-latest
@@ -38,18 +38,23 @@ spec:
             - name: DB_PORT
               value: "5432"
             - name: DB_NAME
-              value: algo_trading
+              value: trading_db
             - name: DB_USER
-              value: algo_user
+              value: trading_user
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: trading-secrets
-                  key: db-password
+                  key: DB_PASSWORD
             - name: REDIS_HOST
               value: redis
             - name: REDIS_PORT
               value: "6379"
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: REDIS_PASSWORD
           command:
             - python
             - -m
@@ -60,6 +65,9 @@ spec:
             - "--end"
             - "$(BT_END_DATE)"
             - "--output-json"
+          volumeMounts:
+            - name: trading-config
+              mountPath: /app/config
           resources:
             requests:
               cpu: 500m
@@ -67,3 +75,7 @@ spec:
             limits:
               cpu: "2"
               memory: 2Gi
+      volumes:
+        - name: trading-config
+          configMap:
+            name: trading-config

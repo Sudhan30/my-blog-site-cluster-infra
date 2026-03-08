@@ -12,6 +12,7 @@ resources:
   - deployment-order-executor.yaml
   - deployment-portfolio-tracker.yaml
   - data-integrity-deployment.yaml
+  - deployment-reconciliation.yaml
   - job-backtester.yaml
   - deployment-news-intelligence.yaml
   - deployment-research-agent.yaml

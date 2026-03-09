@@ -304,6 +304,16 @@ data:
         volume_threshold: 1.5
         session_bars: 26
 
+      # Gap Continuation (buy gap-up stocks that hold and continue)
+      gap_continuation:
+        enabled: true
+        min_gap_pct: 1.0
+        max_gap_pct: 5.0
+        gap_hold_pct: 50.0
+        min_confirm_bars: 15
+        max_entry_bars: 60
+        volume_threshold: 1.5
+
       # Red-to-Green (gap-down recovery momentum)
       red_to_green:
         enabled: true

@@ -28,14 +28,14 @@ spec:
           serviceAccountName: optimizer-sa
           containers:
           - name: optimizer
-            image: docker.io/sudhan03/algo-trading:strategy-engine-fa659ec
+            image: docker.io/sudhan03/algo-trading:strategy-engine-8009212
             command: ['python', '-m', 'services.optimizer.main']
             workingDir: /app/src
             env:
             - name: OPTIMIZER_MODE
               value: "once"
             - name: OPTIMIZER_IMAGE
-              value: "docker.io/sudhan03/algo-trading:strategy-engine-fa659ec"
+              value: "docker.io/sudhan03/algo-trading:strategy-engine-8009212"
             - name: OPTIMIZER_CONFIGMAP
               value: "v37-code"
             - name: OPTIMIZER_LOG

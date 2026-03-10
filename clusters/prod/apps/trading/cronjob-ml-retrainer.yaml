@@ -23,7 +23,7 @@ spec:
           - name: docker-hub-creds
           containers:
           - name: trainer
-            image: docker.io/sudhan03/algo-trading:ml-prediction-0860b23
+            image: docker.io/sudhan03/algo-trading:ml-prediction-7edc4c8
             imagePullPolicy: Always
             command: ["/bin/bash", "-c"]
             args:

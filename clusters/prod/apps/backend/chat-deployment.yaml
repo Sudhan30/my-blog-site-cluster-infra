@@ -17,7 +17,7 @@ spec:
       - name: dockerhub-creds
       containers:
       - name: chat
-        image: docker.io/sudhan03/chat-sudharsana:06f9a78
+        image: docker.io/sudhan03/chat-app:data-agent
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
@@ -47,6 +47,10 @@ spec:
               optional: true
         - name: APP_URL
           value: "https://chat.sudharsana.dev"
+        - name: BLOG_DB_READONLY_URL
+          value: "postgresql://readonly_agent:R3adOnly_Ag3nt_S3cur3_2026@postgres-service:5432/blog_db"
+        - name: TRADING_DB_READONLY_URL
+          value: "postgresql://readonly_agent:R3adOnly_Ag3nt_S3cur3_2026@timescaledb.trading.svc.cluster.local:5432/trading_db"
         resources:
           requests:
             cpu: 100m

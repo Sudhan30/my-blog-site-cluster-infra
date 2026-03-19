@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(kubectl get *)",
+      "Bash(kubectl describe *)",
+      "Bash(kubectl logs *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(git *)"
+    ],
+    "deny": [
+      "Bash(kubectl delete *)",
+      "Bash(kubectl exec *)",
+      "Bash(rm -rf *)"
+    ]
+  }
+}

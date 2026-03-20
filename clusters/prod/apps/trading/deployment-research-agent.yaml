@@ -23,7 +23,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: research-agent
-        image: docker.io/sudhan03/algo-trading:research-agent-532d17f
+        image: docker.io/sudhan03/algo-trading:research-agent-3850eae
         imagePullPolicy: Always
         env:
         - name: DB_PASSWORD

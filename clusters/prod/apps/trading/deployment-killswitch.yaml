@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: killswitch
+  namespace: trading
+  labels:
+    app.kubernetes.io/name: killswitch
+    app.kubernetes.io/component: safety
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: killswitch
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: killswitch
+    spec:
+      # Highest priority — survives OOM events
+      priorityClassName: system-cluster-critical
+      containers:
+        - name: killswitch
+          image: redis:7-alpine
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Kill switch monitor starting..."
+              # Monitor Redis key blue:killswitch:active
+              # When set to 'true', this pod would:
+              # 1. Cancel all open orders via Alpaca API
+              # 2. Flatten all positions
+              # 3. Send alerts via Gotify + Slack
+              #
+              # For now, this is a placeholder that monitors the key
+              while true; do
+                KILL=$(redis-cli -h redis -a $REDIS_PASSWORD GET blue:killswitch:active 2>/dev/null)
+                if [ "$KILL" = "true" ]; then
+                  echo "KILL SWITCH ACTIVATED at $(date -Iseconds)"
+                  # TODO: Wire to Alpaca cancel-all + flatten-all
+                  redis-cli -h redis -a $REDIS_PASSWORD SET blue:killswitch:last_triggered "$(date -Iseconds)" 2>/dev/null
+                fi
+                sleep 5
+              done
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: REDIS_PASSWORD
+          resources:
+            # Guaranteed QoS: requests == limits
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+          livenessProbe:
+            exec:
+              command: ["redis-cli", "-h", "redis", "-a", "$(REDIS_PASSWORD)", "PING"]
+            initialDelaySeconds: 10
+            periodSeconds: 30

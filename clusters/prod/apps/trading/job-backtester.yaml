@@ -23,7 +23,7 @@ spec:
         - name: docker-hub-creds
       containers:
         - name: backtester
-          image: docker.io/sudhan03/algo-trading:backtester-latest
+          image: docker.io/sudhan03/algo-trading:backtester-v69-1c65086
           env:
             - name: BT_START_DATE
               value: "2026-02-19"

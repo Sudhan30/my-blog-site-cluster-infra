@@ -65,6 +65,7 @@ spec:
             - "--end"
             - "$(BT_END_DATE)"
             - "--output-json"
+            - "/tmp/backtest-results.json"
           volumeMounts:
             - name: trading-config
               mountPath: /app/config

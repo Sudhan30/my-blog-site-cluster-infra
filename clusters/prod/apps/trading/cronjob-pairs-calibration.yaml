@@ -1,0 +1,57 @@
+---
+# Pairs Trading Daily Calibration CronJob
+# Runs daily at 13:00 UTC (9 AM ET, before market open)
+# Finds cointegrated pairs via Engle-Granger test and stores in Redis
+# Strategy engine reads calibrated pairs at startup for signal generation
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pairs-calibration
+  namespace: trading
+  labels:
+    app: pairs-calibration
+    app.kubernetes.io/part-of: algo-trading-system
+spec:
+  schedule: "0 13 * * 1-5"  # 1 PM UTC = 9 AM ET, weekdays only
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 3600  # 1 hour max (cointegration scan is O(n^2))
+      template:
+        spec:
+          imagePullSecrets:
+          - name: docker-hub-creds
+          restartPolicy: Never
+          containers:
+          - name: pairs-calibration
+            image: docker.io/sudhan03/algo-trading:strategy-engine-5eacaf1
+            command: ['python', 'scripts/calibrate_pairs.py']
+            workingDir: /app
+            env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: DB_PASSWORD
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: trading-secrets
+                  key: REDIS_PASSWORD
+            volumeMounts:
+            - name: config
+              mountPath: /app/config
+            resources:
+              requests:
+                memory: "1Gi"
+                cpu: "500m"
+              limits:
+                memory: "2Gi"
+                cpu: "1000m"
+          volumes:
+          - name: config
+            configMap:
+              name: trading-config

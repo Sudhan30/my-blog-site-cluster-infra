@@ -20,5 +20,6 @@ resources:
   - deployment-ml-prediction.yaml
   - cronjob-optimizer.yaml
   - cronjob-ml-retrainer.yaml
+  - cronjob-pairs-calibration.yaml
   - deployment-ops-dashboard.yaml
   - ingress-dashboard.yaml

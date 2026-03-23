@@ -22,7 +22,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: portfolio-tracker
-        image: docker.io/sudhan03/algo-trading:portfolio-tracker-f4f14ee
+        image: docker.io/sudhan03/algo-trading:portfolio-tracker-b492ec7
         imagePullPolicy: Always
         env:
         - name: ALPACA_API_KEY

@@ -29,6 +29,25 @@ data:
       min_price: 5.0  # Minimum stock price to trade
       min_volume: 1000000  # Minimum daily volume
     
+    # Symbol Blacklist — permanently blocked from trading
+    # Data-driven: consistent losers across 233 trades (negative avg PnL)
+    symbol_blacklist:
+      - PAYC    # -$2.10 avg
+      - HPE     # -$1.74 avg
+      - CBOE    # -$1.49 avg
+      - UVXY    # -$1.42 avg (vol product, mean-reversion traps)
+      - CRWD    # -$1.24 avg
+      - ADBE    # -$1.21 avg
+      - DRI     # -$1.13 avg
+      - SMCI    # -$1.09 avg
+      - TSLA    # -$1.00 avg (too volatile, whipsaws)
+      - INTC    # consistent loser
+      - SWKS    # consistent loser
+      - WMB     # consistent loser
+      - PANW    # consistent loser
+      - NKE     # consistent loser
+      - XLY     # consistent loser (ETF, not single-stock alpha)
+    
     # Trading Hours (Eastern Time)
     trading_hours:
       market_open: "09:30"
@@ -41,13 +60,18 @@ data:
     session_gating:
       enabled: true
       exclude_windows:
-        # Morning Noise: 09:30 - 10:00 ET (92% of losses came from 9-10 AM entries)
+        # Morning Noise: 09:30 - 10:00 ET — soft block with high volume override
+        # Data: -$6.58 from 18 trades in 9:30-10:00 window, worst time bucket
+        # v62: Removed hard_block — 999x multiplier was impossible to bypass, exceptional gaps should be tradeable
         - start: "09:30"
           end: "10:00"
-          min_volume_multiplier: 5.0  # Only allow if volume is 5x average (real breakout)
-        # Midday + Afternoon Chop: 11:30 - 15:00 ET (1-3 PM was -$364 in losses)
-        - start: "11:30"
-          end: "15:00"
+          hard_block: false
+          min_volume_multiplier: 5.0  # Only allow if volume is 5x average (high bar but reachable)
+        # Lunch Chop: 12:30 - 13:30 ET (narrowed from 12:00-14:00)
+        # v62: 12:00-14:00 still too wide. Audit shows 15:00-16:00 entries are fine.
+        # Only the dead center of lunch (12:30-13:30) is truly low-quality
+        - start: "12:30"
+          end: "13:30"
           min_volume_multiplier: 3.0  # Only allow if volume is 3x average
       
     # Market Mode Configuration (STOCK_ONLY)
@@ -66,17 +90,89 @@ data:
     
     # Risk Management
     risk_management:
-      max_portfolio_risk_pct: 0.2  # Max 0.2% risk (Scaled down for 0.5% position)
-      max_position_size_pct: 0.5  # Max 0.5% of portfolio per position (User Requested)
-      max_daily_loss_pct: 5.0  # Stop trading if daily loss exceeds 5%
-      max_daily_loss_amount: 25.0  # Or $25, whichever comes first
+      max_portfolio_risk_pct: 2.5  # v69: raised from 1.5% — $750 base positions (was $225). Need $1K-$2K per trade for 30% YoY
+      max_position_size_pct: 12.0  # v69: raised from 8.0% — allow $3,600 max position on $30K (was $2,400)
+      max_daily_loss_pct: 5.0  # v68: raised from 3.0% — 5% of $30K = $1,500 daily budget for 30% YoY target
+      max_daily_loss_amount: 1500.0  # v68: raised from $900 — aligned with 5% daily risk budget
+      daily_risk_budget_pct: 5.0  # v68: raised from 4.0% — capital governor budget, need ~0.12% net daily return
       max_correlation: 0.7  # Avoid over-concentration in correlated stocks
+      max_concurrent_positions: 15  # v68: raised from 10 — 9 strategies need room for concurrent entries
+      # v60: Per-strategy position scaling — multiplier on max_position_size_pct
+      # v72: Focus capital on winners. BreakdownShort raised to 1.5. GapCont/FirstPullback/ORB disabled.
+      strategy_position_scale:
+        MeanReversion: 1.5         # v89: raised from 1.0 — MR regime-agnostic, full allocation everywhere
+        IntradayMomentum: 0.5      # v78: halved from 1.2 — 21% WR in definitive, just bleeding
+        DipBuyer: 0.6              # v60: raised from 0.5 — 4.8% of capital
+        Scalping: 0.3              # 2.4% — small, quick trades
+        InverseETFMomentum: 0.8   # 6.4% of capital — moderate sizing for leveraged instruments
+        DailyFactor: 0.5              # v88: reduced from 1.0 — market-neutral, gets margin leverage instead
+        CrossSectionalMomentum: 0.8  # v67: 6.4% per leg — conservative until proven in paper
+        BreakdownShort: 1.0          # v88: reduced from 2.0 — equalize per architect framework
+        FailedBreakoutShort: 0.5     # v75: halved from 1.0 — inconsistent (43% WR, -$50 in definitive backtest)
+        UVXYVolatilityShort: 0.5     # 4.0% — small sizing, UVXY is highly volatile
+        PairsTrading: 1.0            # v88: standard sizing, gets margin leverage for high-confidence trades
+        RedToGreen: 0.4              # v71: slashed from 1.0 — 22% WR, -$20.38 (disabled but sized down as safety)
+        GapContinuation: 0.4         # v71: slashed from 1.0 — 33% WR, -$23.86 (worst PnL per trade)
+        FirstPullback: 0.6           # v71: reduced from 1.0 — 33% WR, -$13.76
+        ORB: 0.8                     # v71: reduced from 1.0 — 31% WR, -$10.25 (most trades, moderate cut)
+        default: 1.0
+        # v88 Regime Multiplier Matrix (from quant-architect memo, wire into code later):
+        # Regime      | MR   | BD   | DF   | PT   | IM   | Dip  | InvETF
+        # trend       | 0.7  | 0.1  | 1.0  | 0.7  | 0.95 | 0.4  | 0.0
+        # range       | 1.0  | 0.85 | 1.0  | 0.9  | 0.4  | 0.7  | 0.8
+        # crisis      | 0.6  | 0.95 | 0.6  | 0.5  | 0.0  | 0.6  | 1.0
       
       # NEW: Portfolio-level exposure limits (prevents hidden leverage)
       max_long_exposure_pct: 80      # Max 80% portfolio in long positions
       max_short_exposure_pct: 30     # Max 30% portfolio in short positions
       max_correlated_positions: 3    # Max 3 positions in same correlation group
-      
+    
+      # v68: Directional risk budget allocation — prevents one direction from consuming all capital
+      risk_budget_allocation:
+        long_pct: 60       # Long strategies get 60% of daily risk budget
+        short_pct: 25      # Short strategies get 25% of daily risk budget
+        neutral_pct: 15    # Market-neutral (CrossSectional, Pairs) get 15%
+        neutral_strategies:
+          - CrossSectionalMomentum
+          - PairsTrading
+          - DailyFactor
+        short_strategies:
+          - BreakdownShort
+          - FailedBreakoutShort
+          - InverseETFMomentum
+    
+      # v68: Strategy maturity — new strategies earn capital over time
+      strategy_maturity:
+        min_trades_for_kelly: 10      # Below this: use fixed conservative size (0.1x)
+        ramp_trades: 50               # Trades to reach full Kelly multiplier
+        new_strategy_multiplier: 0.1  # Fixed size for <10 trades (was 0.5x — too generous for unproven strategies)
+        cautious_multiplier: 0.3      # Starting multiplier for 10-50 trade range (ramps to full Kelly)
+        min_days_for_maturity: 5      # Strategies trading >5 days get full capital allocation
+        pre_qualified_min_multiplier: 0.5  # v74: Pre-qualified strategies skip 0.1x ramp, start at 0.5x
+    
+      # v69: Minimum position size floor — no more $75 trades
+      min_position_size_usd: 500.0  # Positions below $500 are noise; floor ensures meaningful trades
+    
+      # v69: Proven strategy confidence boost
+      # Strategies with demonstrated edge (PF > 1.5, WR > 55%, 20+ trades) get a Kelly multiplier boost.
+      # The boost doubles the Kelly multiplier but caps the final result at 1.5x.
+      # Checked via Redis kelly:stats:{strategy} for live performance data.
+      proven_strategy_boost:
+        enabled: true
+        min_profit_factor: 1.5       # Payoff ratio * WR / (1-WR) must exceed this
+        min_win_rate: 0.55           # Win rate must exceed 55%
+        min_sample_size: 20          # Need 20+ trades to qualify
+        boost_multiplier: 2.0        # Double the Kelly multiplier for proven strategies
+        max_boosted_multiplier: 1.5  # Cap after boost (same as Kelly ceiling)
+        # Strategies pre-qualified from backtest data (bypass Redis check until live data available)
+        # v88: PairsTrading + DailyFactor added — market-neutral strategies get margin leverage priority
+        pre_qualified:
+          - BreakdownShort           # Backtest: 67% WR, +$80.23 in 8 days, PF ~2.0
+          # FailedBreakoutShort REMOVED v75: inconsistent (+$23, -$45, -$50 across backtests), 43% WR below breakeven
+          - MeanReversion            # Backtest: 67% WR, proven across all backtests
+          - PairsTrading             # v88: market-neutral stat arb, margin leverage priority
+          - DailyFactor              # v88: market-neutral factor strategy, margin leverage priority
+    
       # Pattern Day Trader Rule Compliance
       pdt_rule:
         enabled: false  # Disabled for paper trading testing with $100k
@@ -90,9 +186,10 @@ data:
       adx_trend_threshold: 25      # ADX > 25 = trending market
       adx_range_threshold: 20      # ADX < 20 = ranging market
       vwap_range_pct: 1.0          # Price within 1% of VWAP = ranging
-      vix_crisis_threshold: 30     # VIX > 30 = crisis mode
+      vix_crisis_threshold: 35     # v62: raised from 30 — VIX 31-35 was triggering crisis too often, suppressing MR/DipBuyer. 35 = genuine crisis only
       vix_spike_pct: 20            # VIX spike > 20% = crisis
       vol_expansion_multiplier: 1.5  # Short-term vol > 1.5x long-term = expanding
+      vol_crisis_threshold: 2.0      # v82: lowered from 3.0 — Aug 2024 crash never triggered crisis at 3x
       
       # Third-order improvements
       regime_change_bars: 3        # Bars before regime change confirmed
@@ -113,7 +210,7 @@ data:
     # Portfolio Heat Management
     heat_management:
       enabled: true
-      max_portfolio_heat_pct: 10.0  # Max % of portfolio at risk
+      max_portfolio_heat_pct: 25.0  # v78: raised from 20% — room for $5K+ positions on proven strategies
     
     # Signal Ranking & Scarcity (New Phase 3)
     strategy_engine:
@@ -127,11 +224,49 @@ data:
     
     # Time-Decay Attribution ("Opportunity Cost Exits")
     # Close stagnant positions to free up capital
+    # v88: DISABLED mid-day time_decay. TOD analysis showed EOD forced exits outperform
+    # mid-day time_decay by wide margin. Entries have signal but time_decay destroys edge.
+    # Trades now exit ONLY via: TP (ATR), SL (ATR), trailing stop, or EOD liquidation (15:45).
+    # Previous values preserved in comments for A/B testing.
     time_decay:
       enabled: true
-      max_stale_hours: 3.0          # Must fit within 6.5h trading day
-      min_profit_threshold_pct: 0.3 # Close if PnL < 0.3% after max hold
-      profit_protect_threshold_pct: 1.0 # Protect profits above 1%
+      max_stale_hours: 6.5          # v88: full trading day (was 0.75h). Effectively disables mid-day time_decay
+      min_profit_threshold_pct: -999 # v61: ALWAYS exit after max hold, even at a loss
+      profit_protect_threshold_pct: 0.5 # v60: protect profits earlier (0.5%+)
+      # v88: Quick stop DISABLED — let SL handle it (was: 30min/0.5%)
+      quick_stop_minutes: 390       # v88: full day (was 30)
+      quick_stop_loss_pct: 99.0     # v88: effectively disabled (was 0.5)
+      # v88: Early time decay DISABLED — let trades breathe (was: 30min/0.1%)
+      time_decay_early_exit_minutes: 390  # v88: full day (was 30)
+      time_decay_early_exit_loss_pct: 99.0 # v88: effectively disabled (was 0.1)
+      # v88: Per-strategy max hold set to full trading day (390 min = 9:30-16:00)
+      # EOD liquidation at 15:45 is the real exit mechanism now.
+      # Previous v61 values: Momentum=60, Scalping=30, MR=90, MA=120, TF=180,
+      #   IM=45, News=60, Dip=90, Breakout=60, Panic=30, GC=120, ORB=60,
+      #   VWAP=60, R2G=60, FP=90, InvETF=120, DF=360, CSM=90, BD=60, FBS=60, default=60
+      strategy_max_hold:
+        Momentum: 390              # v88: full day (was 60)
+        Scalping: 390              # v88: full day (was 30)
+        MeanReversion: 390         # v88: full day (was 90)
+        MovingAverage: 390         # v88: full day (was 120)
+        TrendFollowing: 390        # v88: full day (was 180)
+        IntradayMomentum: 390      # v88: full day (was 45)
+        NewsSentiment: 390         # v88: full day (was 60)
+        DipBuyer: 390              # v88: full day (was 90)
+        Breakout: 390              # v88: full day (was 60)
+        PanicReversal: 390         # v88: full day (was 30)
+        GoldenCross: 390           # v88: full day (was 120)
+        ORB: 390                   # v88: full day (was 60)
+        VWAPBounce: 390            # v88: full day (was 60)
+        RedToGreen: 390            # v88: full day (was 60)
+        FirstPullback: 390         # v88: full day (was 90)
+        InverseETFMomentum: 390    # v88: full day (was 120)
+        DailyFactor: 390           # v88: unchanged (was 360, now 390 for consistency)
+        CrossSectionalMomentum: 390 # v88: full day (was 90)
+        BreakdownShort: 390        # v88: full day (was 60)
+        FailedBreakoutShort: 390   # v88: full day (was 60)
+        PairsTrading: 390          # v88: pairs use spread-based exits, time_decay is just backstop
+        default: 390               # v88: full day (was 60)
     
     # Time Sync Validation (clock drift protection)
     time_sync:
@@ -194,7 +329,7 @@ data:
     # Trade Lifecycle States
     trade_lifecycle:
       defensive_adverse_pct: 0.5     # Adverse move for DEFENSIVE
-      profit_protect_gain_pct: 1.0   # Gain for PROFIT_PROTECT
+      profit_protect_gain_pct: 0.7   # v60: lowered from 1.0% — protect profits earlier (SYY/BK were cut at +0.23-0.28%)
     
     # Strategy Configuration
     strategies:
@@ -217,6 +352,9 @@ data:
         rsi_oversold: 30
         rsi_overbought: 70
         timeframe: "15min"
+        min_signal_strength: 55         # v90: entry quality filter — reject weak signals
+        volume_ratio_min: 1.5           # v90: only trade above-average volume
+        momentum_filter: true           # v90: only BUY stocks above 10-bar EMA
         
       # Momentum
       # DISABLED: 14% WR, -$74.20 over 24-day backtest (broken signals)
@@ -231,11 +369,29 @@ data:
         volume_confirmation: true
         timeframe: "30min"
     
+      # Intraday Momentum (v36) — trend-following pullback buyer
+      intraday_momentum:
+        enabled: false  # v79: DISABLED — 103 trades, 32% WR, 0 TP/SL exits, 5% TP unreachable, pure drag
+        min_gain_from_open: 0.008  # v39j: 0.8% min (was 1.5% — too high for 1-min data)
+        max_gain_from_open: 0.04   # v39j: 4% max (was 3% — allow stronger trends)
+        rvol_threshold: 1.3        # v39j: 1.3x (was 2.0 — 1-min volume is noisy)
+        pullback_proximity: 0.01   # v73: 1.0% (was 0.5% — more pullback entries qualify, was rejecting valid setups)
+        rsi_min: 45                # v73: 45 (was hardcoded 50 — trend entries can start with RSI < 50 after pullback)
+        rsi_max: 80                # v73: 80 (was 78 — allow strong momentum entries)
+        min_signal_strength: 55    # v90: raised from 48 — entry quality filter, reject weak signals
+        higher_lows_min: 1         # v73: require 1 out of 3 (was 2/3 — 15-min bars too noisy for strict higher-low)
+        sma20_rising: true         # v73: new trend filter — only enter if 20-period SMA is rising
+        volume_ratio_min: 1.5      # v90: only trade above-average volume
+        momentum_filter: true      # v90: only BUY stocks above 10-bar EMA
+    
       # Dip Buyer (Buy the Dip)
       dip_buyer:
         enabled: true
         dip_percentage: 5.0
         lookback_period: 24
+        min_signal_strength: 55         # v90: entry quality filter
+        volume_ratio_min: 1.5           # v90: only trade above-average volume
+        momentum_filter: true           # v90: only BUY stocks above 10-bar EMA
     
       # Breakout Strategy (New)
       breakout:
@@ -243,11 +399,14 @@ data:
         lookback_period: 20
         volume_threshold: 1.5
         min_breakout_pct: 0.3        # Min % above resistance (paper: "minimum amplitude")
+        min_signal_strength: 55         # v90: entry quality filter
+        volume_ratio_min: 1.5           # v90: only trade above-average volume
+        momentum_filter: true           # v90: only BUY stocks above 10-bar EMA
     
       # News Sentiment (AI/NLP)
-      # DISABLED: Generated 11,781 noise signals/day, -$18 PnL proven toxic
+      # FORENSIC DISABLED: -$18 PnL on Jan 30, -0.77% avg ROI
       news_sentiment:
-        enabled: false
+        enabled: false  # DISABLED - Proven toxic
         sentiment_threshold: 0.2
         news_limit: 5
     
@@ -272,74 +431,182 @@ data:
     
       # Opening Range Breakout (ORB)
       orb:
-        enabled: true
+        enabled: true  # v73: re-enabled — contributed to v70's +0.44% (best run)
         opening_range_minutes: 15      # First 15 min = one candle (paper: 5-15 min optimal)
         breakout_buffer_pct: 0.1       # 0.1% above ORB high to confirm
-        volume_threshold: 1.5          # Volume must be 1.5x average
-
-      # Intraday Momentum (v36) — trend-following pullback buyer
-      intraday_momentum:
-        enabled: true
-        min_gain_from_open: 0.008  # 0.8% min gain from open
-        max_gain_from_open: 0.04   # 4% max
-        rvol_threshold: 1.3        # 1.3x relative volume
-        pullback_proximity: 0.005  # 0.5% pullback proximity
-        rsi_max: 78
-
-      # First Pullback After Breakout (buy the first dip after a new-high breakout)
-      first_pullback:
-        enabled: true
-        breakout_bars: 15
-        lookback_for_breakout: 12
-        min_pullback_pct: 0.15
-        max_pullback_pct: 2.5
-        breakout_volume_threshold: 1.2
-        recovery_volume_threshold: 1.0
-
-      # VWAP Bounce (mean reversion at VWAP)
+        volume_threshold: 1.5          # v70: lowered from 2.0 — 2.0x was too restrictive, killed most ORB signals
+        min_signal_strength: 55         # v90: entry quality filter
+        momentum_filter: true           # v90: only BUY stocks above 10-bar EMA
+    
+      # VWAP Bounce (mean reversion at VWAP — research paper p.3)
+      # Fires when stock that was above VWAP pulls back to it with RSI(2)<30 + volume.
+      # DISABLED: crowds out DipBuyer (fires 16-26 trades/day, -$10.87 vs baseline over 3 days)
       vwap_bounce:
         enabled: false
         vwap_proximity_pct: 0.5
         rsi2_threshold: 30
         volume_threshold: 1.5
         session_bars: 26
-
+    
+      # First Pullback After Breakout (buy the first dip after a new-high breakout)
+      # Naturally fires 0 signals on sell-off days: no breakouts = no pullbacks.
+      first_pullback:
+        enabled: true  # v73: re-enabled — contributed to v70's +0.44% (best run)
+        breakout_bars: 15               # v41d: relaxed (was 20) — 15×15m = 3.75hr (catches more breakouts)
+        lookback_for_breakout: 20       # v70: widened from 12 to 20 (5 hours at 15min bars) — catch more breakouts
+        min_pullback_pct: 0.15          # v41d: relaxed (was 0.3) — allow shallower pullbacks in strong trends
+        max_pullback_pct: 2.5           # v41d: wider (was 1.5) — deeper pullbacks still valid if structure intact
+        breakout_volume_threshold: 1.5  # v90: raised from 1.2 — require above-average volume on breakout
+        recovery_volume_threshold: 1.0  # v41d: relaxed (was 0.8) — allow normal volume during pullback
+        min_signal_strength: 55         # v90: entry quality filter
+        volume_ratio_min: 1.5           # v90: only trade above-average volume
+        momentum_filter: true           # v90: only BUY stocks above 10-bar EMA
+    
       # Gap Continuation (buy gap-up stocks that hold and continue)
+      # 60-70% follow-through on gaps 1-5% with volume confirmation
       gap_continuation:
-        enabled: true
-        min_gap_pct: 1.0
-        max_gap_pct: 5.0
-        gap_hold_pct: 50.0
-        min_confirm_bars: 15
-        max_entry_bars: 60
-        volume_threshold: 1.5
-
-      # Red-to-Green (gap-down recovery momentum)
+        enabled: true  # v73: re-enabled — contributed to v70's +0.44% (best run)
+        min_gap_pct: 1.0              # Min gap-up % (1% = meaningful gap)
+        max_gap_pct: 5.0              # Max gap % (above 5% = overextended)
+        gap_hold_pct: 50.0            # Gap must hold above 50% of its size
+        min_confirm_bars: 15          # Wait 15 min before confirming
+        max_entry_bars: 60            # Don't enter after first hour
+        volume_threshold: 1.5         # Volume must be 1.5x average
+        min_signal_strength: 55       # v90: entry quality filter
+        momentum_filter: true         # v90: only BUY stocks above 10-bar EMA
+    
+      # Red-to-Green (research paper: gap-down recovery momentum)
+      # Fires ONCE per stock per day when a gap-down stock crosses above previous close.
+      # v71: DISABLED — 22% WR, -$20.38 over 86-trade backtest. Needs fundamental rework.
       red_to_green:
+        enabled: false
+        min_gap_pct: 0.2               # v40b: lowered from 0.3 — capture more gap-downs (8 trades too few)
+        max_gap_pct: 4.0               # v40b: raised from 3.0 — larger gaps can still recover
+        volume_threshold: 1.2          # Volume must be 1.2x average at the cross
+        min_today_bars_below: 0.3      # v40b: lowered from 0.5 — 30% below is enough to confirm gap
+    
+      # Inverse ETF Momentum — buy inverse ETFs in bearish regimes
+      # Long SH/SDS/SQQQ/SDOW/TZA/SPXU when market is bearish. No short selling needed.
+      inverse_etf:
         enabled: true
-        min_gap_pct: 0.2
-        max_gap_pct: 4.0
-        volume_threshold: 1.2
-        min_today_bars_below: 0.3
-
-      # UVXY Volatility Short (Mean reversion on vol spikes)
+        spy_ema_period: 20             # SPY must be below this EMA
+        vix_threshold: 25.0            # Min VIX to trigger (elevated fear)
+        vix_strong_threshold: 35.0     # VIX above this = strong bearish (allow 3x leverage)
+        min_signal_strength: 55.0      # v90: raised from 35 — entry quality filter
+        max_leverage_mild: 1           # Max leverage in mild bearish (1x = SH only)
+        max_leverage_strong: 3         # Max leverage in strong bearish (3x = SQQQ, SPXU, TZA)
+    
+      # Cross-Sectional Momentum (v67) — market-neutral long/short
+      # Ranks symbols by 5-period momentum, longs top decile, shorts bottom decile.
+      # Sector-neutral by design. Allowed in ALL regimes (hedged).
+      cross_sectional_momentum:
+        enabled: false  # Backtest: -$145.69, 24% WR, toxic. Needs fundamental rework.
+        lookback_periods: 20            # Rolling window for z-score calculation
+        z_threshold_long: 1.5           # Z-score above this = long signal
+        z_threshold_short: -1.5         # Z-score below this = short signal
+        momentum_threshold: 0.02        # Absolute momentum filter (2% min move)
+        min_volume_ratio: 1.3           # Volume vs 20-period average
+        min_price: 10.0                 # Skip stocks below $10
+        max_long_positions: 5           # Cap on simultaneous long entries
+        max_short_positions: 5          # Cap on simultaneous short entries
+    
+      # Pairs Trading — statistical arbitrage via cointegration
+      # Calibrated daily by cronjob (scripts/calibrate_pairs.py) at 9 AM ET.
+      # Reads calibrated pairs from Redis key pairs_trading:calibrated_pairs.
+      pairs_trading:
+        enabled: true
+        z_entry: 2.0                   # Enter when |z-score| > 2.0
+        z_exit: 0.5                    # Exit when |z-score| < 0.5
+        min_half_life: 5               # Min mean-reversion half-life (days)
+        max_half_life: 60              # Max half-life (days)
+        max_pairs: 5                   # Max simultaneous pair positions
+        max_calibrated: 20             # Top N pairs to keep from calibration
+        lookback_days: 252             # Trading days for calibration lookback
+        signal_mode: "long_only"       # Start conservative (no shorts needed)
+        min_price: 10.0                # Skip sub-$10 stocks
+        min_signal_strength: 55        # v90: entry quality filter
+    
+      # Daily Factor Rebalancing — once-daily market-neutral long/short
+      # Ranks all symbols by composite factor score, longs top N, shorts bottom N.
+      # Runs at 10:00 AM ET after opening volatility settles. Regime-agnostic.
+      daily_factor:
+        enabled: true
+        rebalance_time: "10:00"        # ET, after opening volatility settles
+        num_long: 5                    # Top 5 by composite score
+        num_short: 5                   # Bottom 5 by composite score
+        position_size_pct: 3.0         # 3% per position = 30% total (10 positions)
+        min_ml_confidence: 0.55        # ML confidence gate (skip if below)
+        min_signal_strength: 55        # v90: entry quality filter
+        factors:
+          momentum_weight: 0.30        # 20-day return rank
+          mean_reversion_weight: 0.20  # RSI(14) — oversold positive for longs
+          volume_weight: 0.20          # Unusual volume (>1.5x average)
+          volatility_weight: 0.15      # Lower vol preferred (risk-adjusted)
+          ml_weight: 0.15              # Predicted return from WalkForwardTrainer
+    
+      # Breakdown Short — short stocks breaking below opening range low
+      # Mirror of ORB but inverted. Fires on weak/declining days.
+      # Allowed in RANGE and CRISIS regimes only.
+      breakdown_short:
+        enabled: true
+        opening_range_minutes: 15      # First 15 min = opening range
+        breakdown_buffer_pct: 0.1      # 0.1% below ORB low to confirm
+        volume_threshold: 1.5          # Volume must be 1.5x average
+        rsi_max: 40                    # RSI must be below 40 (weakening)
+        min_signal_strength: 55        # v90: entry quality filter
+        volume_ratio_min: 1.5          # v90: only trade above-average volume
+    
+      # Failed Breakout Short — short stocks that fail above prev day high
+      # Traps longs who chased the breakout; their liquidation fuels the short.
+      # Allowed in RANGE and CRISIS regimes only.
+      failed_breakout_short:
+        enabled: true
+        volume_threshold: 1.5          # Volume spike on reversal
+        rsi_max: 55                    # RSI must show weakness
+        min_rejection_pct: 0.15        # Min % below prev day high (0.15%)
+        max_rejection_pct: 1.5         # Max % below (don't chase)
+        min_signal_strength: 55        # v90: entry quality filter
+        volume_ratio_min: 1.5          # v90: only trade above-average volume
+    
+      # UVXY Volatility — short UVXY after VIX spikes fade (contango decay)
+      # BUY side: quick scalp when VIX spikes from low levels
       uvxy_volatility:
         enabled: true
-        bb_period: 20                  # Bollinger Band period
-        bb_std: 2.0                    # Bollinger Band std devs
-        rsi_period: 14                 # RSI period
-        rsi_overbought: 70             # RSI threshold for overbought
-        min_upper_shadow_ratio: 2.0    # Shooting star upper shadow ratio
-        use_regime_filter: true        # Only short when SPY > 200 SMA
-        stop_loss_pct: 5.0             # Hard stop for shorts
+        rsi_period: 14                 # RSI calculation period
+        rsi_overbought: 70             # RSI threshold for short entry
+        rsi_oversold: 30               # RSI threshold for long scalp
+        sma_period: 20                 # SMA period for distance check
+        sma_distance_pct: 15.0         # Min % above SMA to short
+        vix_short_threshold: 30.0      # VIX must be above this to short
+        vix_long_threshold: 20.0       # VIX must be below this to buy
+        vix_spike_pct: 10.0            # Min VIX daily % rise for buy signal
+        vix_decline_days: 2            # VIX must decline this many days for short
+        min_signal_strength: 55.0      # v90: raised from 30 — entry quality filter
+    
+      # Regime Alpha — trade SPY/QQQ/SH/SQQQ on regime transitions
+      # Exploits VIX/SPY macro features (AUC 0.594) instead of per-stock alpha.
+      # Fires only on regime transition events, not every candle.
+      regime_alpha:
+        enabled: true
+        position_size_pct: 5.0           # 5% of portfolio per signal
+        transition_cooldown_minutes: 60  # Don't re-signal within 1 hour of transition
+        min_adx_for_signal: 20.0         # ADX gate for trend signals
+        min_signal_strength: 55          # v90: entry quality filter
     
     # Position Management
     position_management:
       take_profit_pct: 5.0  # Take profit at 5% gain (User requested)
-      stop_loss_pct: 2.5  # Stop loss at 2.5% loss (Half of TP)
+      stop_loss_pct: 2.0  # v72: reverted from 1.6% — v71 tighter stops regressed, back to v70 value
       trailing_stop: true
-      trailing_stop_pct: 1.0  # Trail by 1%
+      trailing_stop_pct: 0.75  # v60: tightened from 1.0% — lock in more profit (APD best trade used trailing)
       partial_exit: false  # Sell entire position at once
+    
+      # v72: quick_profit_lock DISABLED — didn't help in v71 backtest, reverted
+      quick_profit_lock:
+        enabled: false
+        min_gain_pct: 0.5
+        max_minutes_from_entry: 15
+        tightened_trail_pct: 0.3
     
     # Database Configuration
     database:
@@ -389,10 +656,48 @@ data:
       format: "json"
       retention_days: 90
     
+    # Intelligence Layer (Bloomberg-like services)
+    intelligence:
+      enabled: true
+      news_pipeline:
+        enabled: true
+        rss_interval_minutes: 5
+        finnhub_interval_minutes: 10
+      llm:
+        host: "http://ollama-service.web:11434"
+        model: "gemma3:12b"
+        timeout_seconds: 30
+      signal_enhancement:
+        enabled: true  # v36: enabled — NEWS_DRIVEN -15pts, MIXED -5pts
+        timeout_seconds: 3.0
+        penalty_news_driven: -0.15
+      research:
+        premarket_hour: 9
+        post_trade_hour: 16
+        risk_alert_interval_minutes: 15
+      chat_agent:
+        port: 8080
+    
     # Backtesting
     backtesting:
-      initial_capital: 500.0
+      initial_capital: 30000.0
       commission: 0.0  # Alpaca is commission-free
       slippage_pct: 0.05  # Assume 0.05% slippage
       start_date: "2024-01-01"
       end_date: "2024-12-19"
+    
+    # Proactive Hedging ("Iron Dome v2")
+    # Shifts from reactive-only to proactive hedging using inverse ETFs.
+    # Any single trigger fires independently (no AND gate).
+    hedging:
+      enabled: true
+      symbol: "SH"                          # Primary hedge: ProShares Short S&P500 (1x)
+      aggressive_symbol: "SQQQ"             # Aggressive hedge: ProShares UltraPro Short QQQ (3x)
+      check_interval_seconds: 300           # Evaluate every 5 minutes during market hours
+      target_net_beta: 0.7                  # Target effective beta when hedging
+      beta_hedge_trigger: 1.0               # Hedge when portfolio beta exceeds this
+      drawdown_trigger_pct: -0.5            # Start hedging at -0.5% daily P&L (not -1.5%)
+      vix_spike_threshold: 25.0             # VIX crossing above this from below triggers hedge
+      regime_transition_reduction_pct: 10.0 # TREND->RANGE: add SH worth 10% of portfolio
+      max_hedge_pct: 30.0                   # Never hedge more than 30% of portfolio
+      min_hedge_notional: 200.0             # Minimum dollar amount per hedge order

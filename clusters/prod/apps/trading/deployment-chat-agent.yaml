@@ -23,7 +23,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: chat-agent
-        image: docker.io/sudhan03/algo-trading:chat-agent-f38c7fe
+        image: docker.io/sudhan03/algo-trading:chat-agent-58803b0
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

@@ -28,7 +28,7 @@ spec:
           serviceAccountName: optimizer-sa
           containers:
           - name: optimizer
-            image: docker.io/sudhan03/algo-trading:strategy-engine-4956161
+            image: docker.io/sudhan03/algo-trading:strategy-engine-8a21590
             command: ['python', '-m', 'services.optimizer.main']
             workingDir: /app/src
             env:

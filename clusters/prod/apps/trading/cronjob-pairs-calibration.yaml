@@ -27,7 +27,7 @@ spec:
           restartPolicy: Never
           containers:
           - name: pairs-calibration
-            image: docker.io/sudhan03/algo-trading:strategy-engine-5eacaf1
+            image: docker.io/sudhan03/algo-trading:strategy-engine-8a21590
             command: ['python', 'scripts/calibrate_pairs.py']
             workingDir: /app
             env:

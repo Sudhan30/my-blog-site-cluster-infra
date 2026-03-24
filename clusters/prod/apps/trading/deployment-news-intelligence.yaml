@@ -23,7 +23,7 @@ spec:
       - name: docker-hub-creds
       containers:
       - name: news-intelligence
-        image: docker.io/sudhan03/algo-trading:news-intelligence-a9dc6e9
+        image: docker.io/sudhan03/algo-trading:news-intelligence-f38c7fe
         imagePullPolicy: Always
         env:
         - name: DB_PASSWORD

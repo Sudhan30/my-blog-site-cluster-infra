@@ -35,7 +35,7 @@ spec:
             - name: OPTIMIZER_MODE
               value: "once"
             - name: OPTIMIZER_IMAGE
-              value: "docker.io/sudhan03/algo-trading:strategy-engine-4956161"
+              value: "docker.io/sudhan03/algo-trading:strategy-engine-8a21590"
             - name: OPTIMIZER_CONFIGMAP
               value: "v37-code"
             - name: OPTIMIZER_LOG

@@ -7,7 +7,7 @@ metadata:
   labels:
     app: market-scheduler
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: market-scheduler

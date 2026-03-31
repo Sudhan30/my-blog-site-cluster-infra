@@ -13,6 +13,7 @@ metadata:
     app.kubernetes.io/part-of: algo-trading-system
 spec:
   schedule: "0 13 * * 1-5"  # 1 PM UTC = 9 AM ET, weekdays only
+  suspend: true
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 5
   failedJobsHistoryLimit: 3

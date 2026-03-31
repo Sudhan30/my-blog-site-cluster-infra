@@ -9,7 +9,7 @@ metadata:
     app: order-executor
     app.kubernetes.io/part-of: algo-trading-system
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: order-executor

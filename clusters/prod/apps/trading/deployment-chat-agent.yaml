@@ -10,7 +10,7 @@ metadata:
     app: chat-agent
     app.kubernetes.io/part-of: algo-trading-system
 spec:
-  replicas: 1
+  replicas: 0
   selector:
     matchLabels:
       app: chat-agent

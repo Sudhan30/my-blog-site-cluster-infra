@@ -12,6 +12,7 @@ metadata:
     app.kubernetes.io/part-of: algo-trading-system
 spec:
   schedule: "0 2 * * 0"
+  suspend: true
   concurrencyPolicy: Forbid
   failedJobsHistoryLimit: 1
   successfulJobsHistoryLimit: 3

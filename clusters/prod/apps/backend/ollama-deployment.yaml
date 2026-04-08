@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: ollama
-        image: ollama/ollama:rocm
+        image: ollama/ollama:0.20.3-rocm
         ports:
         - containerPort: 11434
         env:

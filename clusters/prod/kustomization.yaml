@@ -8,3 +8,4 @@ resources:
   - apps/trading
   - apps/orchestrator
   - apps/cert-manager
+  - apps/freshprobe

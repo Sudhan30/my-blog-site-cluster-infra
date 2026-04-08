@@ -1,0 +1,110 @@
+{
+  "A_baseline": {
+    "trades": 2363,
+    "total_pnl": 493.34,
+    "avg_pnl": 0.2088,
+    "avg_pnl_pct": 0.0232,
+    "win_rate": 51.2,
+    "avg_win_pct": 1.4835,
+    "avg_loss_pct": -1.54,
+    "long_trades": 1168,
+    "long_pnl": 2214.82,
+    "long_wr": 57.7,
+    "short_trades": 1195,
+    "short_pnl": -1721.48,
+    "short_wr": 44.9,
+    "regime_transitions": 442,
+    "pct_transitions": 18.7,
+    "pnl_during_transitions": 1229.33,
+    "pnl_stable_regime": -735.99,
+    "regime_breakdown": {
+      "range": {
+        "trades": 2363,
+        "pnl": 493.34,
+        "avg_pnl_pct": 0.0232,
+        "wr": 51.2
+      }
+    }
+  },
+  "B_strict": {
+    "trades": 740,
+    "total_pnl": -671.61,
+    "avg_pnl": -0.9076,
+    "avg_pnl_pct": -0.1008,
+    "win_rate": 50.1,
+    "avg_win_pct": 1.4084,
+    "avg_loss_pct": -1.6405,
+    "long_trades": 349,
+    "long_pnl": -238.23,
+    "long_wr": 57.3,
+    "short_trades": 391,
+    "short_pnl": -433.38,
+    "short_wr": 43.7,
+    "regime_transitions": 174,
+    "pct_transitions": 23.5,
+    "pnl_during_transitions": -476.8,
+    "pnl_stable_regime": -194.8,
+    "regime_breakdown": {
+      "range": {
+        "trades": 740,
+        "pnl": -671.61,
+        "avg_pnl_pct": -0.1008,
+        "wr": 50.1
+      }
+    }
+  },
+  "C_oracle": {
+    "trades": 2335,
+    "total_pnl": -1001.31,
+    "avg_pnl": -0.4288,
+    "avg_pnl_pct": -0.0476,
+    "win_rate": 50.1,
+    "avg_win_pct": 1.407,
+    "avg_loss_pct": -1.5322,
+    "long_trades": 1130,
+    "long_pnl": 1739.58,
+    "long_wr": 57.0,
+    "short_trades": 1205,
+    "short_pnl": -2740.89,
+    "short_wr": 43.7,
+    "regime_transitions": 356,
+    "pct_transitions": 15.2,
+    "pnl_during_transitions": -259.83,
+    "pnl_stable_regime": -741.48,
+    "regime_breakdown": {
+      "range": {
+        "trades": 2335,
+        "pnl": -1001.31,
+        "avg_pnl_pct": -0.0476,
+        "wr": 50.1
+      }
+    }
+  },
+  "D_nogate": {
+    "trades": 19734,
+    "total_pnl": 15143.91,
+    "avg_pnl": 0.7674,
+    "avg_pnl_pct": 0.0853,
+    "win_rate": 51.4,
+    "avg_win_pct": 1.6265,
+    "avg_loss_pct": -1.5674,
+    "long_trades": 9762,
+    "long_pnl": 23691.42,
+    "long_wr": 53.8,
+    "short_trades": 9972,
+    "short_pnl": -8547.52,
+    "short_wr": 49.1,
+    "regime_transitions": 0,
+    "pct_transitions": 0.0,
+    "pnl_during_transitions": 0,
+    "pnl_stable_regime": 15143.91,
+    "regime_breakdown": {
+      "range": {
+        "trades": 19734,
+        "pnl": 15143.91,
+        "avg_pnl_pct": 0.0853,
+        "wr": 51.4
+      }
+    }
+  }
+}

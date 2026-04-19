@@ -17,7 +17,7 @@ spec:
       - name: dockerhub-creds
       containers:
       - name: chat
-        image: docker.io/sudhan03/chat-app:data-agent
+        image: docker.io/sudhan03/chat-sudharsana:5b55606
         imagePullPolicy: Always
         ports:
         - containerPort: 3000
@@ -26,10 +26,8 @@ spec:
           value: "postgresql://blog_user:Zx9mKp4vNq8rLt2wYh5jGf3cDe7aXb6sQw1uRe0o@postgres-service:5432/blog_db?sslmode=disable"
         - name: OLLAMA_HOST
           value: "http://ollama-service:11434"
-        - name: OLLAMA_CHAT_MODEL
-          value: "gemma3:12b"
-        - name: OLLAMA_TOOL_MODEL
-          value: "qwen3:8b"
+        - name: OLLAMA_MODEL
+          value: "gemma4:latest"
         - name: PORT
           value: "3000"
         - name: NODE_ENV

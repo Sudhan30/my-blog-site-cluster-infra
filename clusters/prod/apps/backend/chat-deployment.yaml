@@ -17,7 +17,7 @@ spec:
       - name: dockerhub-creds
       containers:
       - name: chat
-        image: docker.io/sudhan03/chat-sudharsana:128ceef
+        image: docker.io/sudhan03/chat-sudharsana:4ef1806
         imagePullPolicy: Always
         ports:
         - containerPort: 3000

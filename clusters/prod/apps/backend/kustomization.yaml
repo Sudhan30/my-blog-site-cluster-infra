@@ -24,3 +24,7 @@ resources:
   # Gotify notification server
   - gotify-deployment.yaml
   - gotify-ingress.yaml
+  # JobBot mark-applied endpoint (Done links from Gotify notifications).
+  # Bridges cluster traffic to host process jobbot.service:8086 via
+  # selector-less Service + manual Endpoints.
+  - jobbot-mark-applied-ingress.yaml

@@ -21,6 +21,11 @@ resources:
   # Chat application (Docker image from CI/CD)
   - chat-deployment.yaml
   - chat-ingress.yaml
+  - chat-rbac.yaml
   # Gotify notification server
   - gotify-deployment.yaml
   - gotify-ingress.yaml
+  # JobBot mark-applied endpoint (Done links from Gotify notifications).
+  # Bridges cluster traffic to host process jobbot.service:8086 via
+  # selector-less Service + manual Endpoints.
+  - jobbot-mark-applied-ingress.yaml

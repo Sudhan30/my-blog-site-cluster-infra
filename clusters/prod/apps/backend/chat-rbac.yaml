@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chat-app
+  namespace: web
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: chat-app-pod-reader
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: chat-app-pod-reader
+subjects:
+  - kind: ServiceAccount
+    name: chat-app
+    namespace: web
+roleRef:
+  kind: ClusterRole
+  name: chat-app-pod-reader
+  apiGroup: rbac.authorization.k8s.io

@@ -13,6 +13,7 @@ spec:
       labels:
         app: chat-app
     spec:
+      serviceAccountName: chat-app
       imagePullSecrets:
       - name: dockerhub-creds
       containers:

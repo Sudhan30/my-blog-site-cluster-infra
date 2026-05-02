@@ -4,7 +4,6 @@ resources:
   - apps/blog
   - apps/backend
   - apps/monitoring
-  - apps/infra
   - apps/trading
   - apps/orchestrator
   - apps/cert-manager
